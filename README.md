@@ -55,7 +55,21 @@ Note that this is currently designed for bacteria and archaea only.
 
 ### What the script is doing
 
-
+1. Read in command line arguments
+2. Run initial checks to ensure all files and folders exist
+3. Read in kraken kreports and get the taxa with >= read_lim
+4. Get the sample groupings from the metadata
+5. Make lists of Taxonomy IDs and files that we'll use/create
+6. Add genomes that we'll download to a dictionary
+7. Make lists of files that will be combined
+8. Download genomes (using multiprocessing)
+9. Extract reads for each taxonomy ID (using multiprocessing)
+10. Check that files were created
+11. Run QUAST for all taxonomy ID's (using multiprocessing)
+12. Check whether QUAST output files were made for all taxonomy IDs
+13. Make Bowtie2 databases and run Bowtie2 for all taxonomy IDs (using multiprocessing)
+14. Get coverage and mapping of reads across genomes for each sample (using multiprocessing)
+15. Summarise results
 
 ## Output
 
@@ -77,7 +91,7 @@ The expected output within ```output_dir``` is:
 - ```reads_mapped```: extracted reads for each taxonomy ID within each sample in fasta (fa) or fastq (fq) format
 - ```taxid_name.dict```: python pickle dictionary containing all taxonomy ID's and names
 
-***output.txt
+### ***output.txt
 
 This file contains most of the information that we are interested in summarised for each taxonomy ID. The columns are:
 - NCBI taxonomy ID
