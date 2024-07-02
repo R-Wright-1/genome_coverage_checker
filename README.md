@@ -78,7 +78,7 @@ The expected output within ```output_dir``` is:
 - ```assembly_summary_bacteria.txt```: NCBI RefSeq assembly summary for bacteria
 - ```project-name_combined_kreport.csv```: A table showing the number of reads assigned to taxa within all samples
 - ```project-name_genomes_not_downloaded.txt```: Text file containing the names of any genomes that couldn't be downloaded. This is typically due to unexpected punctuation characters within the species names that confuse the commands
-- ``project-name_output.txt```: Main output file for coverage-checker. See below for details
+- ```project-name_output.txt```: Main output file for coverage-checker. See below for details
 - ```project-name_quast_not_run.txt```: Files for which QUAST couldn't be run. This is typically because the file was empty
 - ```project-name_unmade_files.txt```: Files that couldn't be made - this is likely because we were trying to create files for every taxonomy ID within every sample, but not every taxonomy ID was found in every sample
 - ```bowtie2_db```: folder containing bowtie2 databases for all genomes
