@@ -2,6 +2,8 @@
 
 This is a repository for storing the code needed to check the genome coverage for taxa identified by Kraken 2 in metagenome samples. It is currently still a work in progress and the code needs streamlining, checkpoints added, etc., but I welcome any feedback on it. 
 
+### Please note that I have been in the process of overhauling this - the basic methodology is the same, but I've been cleaning up the code and hopefully making it more user-friendly. Please see the documentation in the wiki section for an overview and description of how to install.
+
 This came from the issue that many users have mentioned regarding Kraken 2 identifying many false positive taxa within metagenome samples. While we have found [previously](https://www.microbiologyresearch.org/content/journal/mgen/10.1099/mgen.0.000949) that the parameters used to run Kraken 2 can drastically reduce false positive taxa (i.e., by increasing the confidence threshold), it is not always practical to do this. In environmental or low biomass samples this typically leads to having few or no reads classified. We therefore set out to verify the taxa present in metagenome samples by doing a few things:
 1. Taking the taxonomy ID's for taxa identified by Kraken 2 as being present in metagenome samples
 2. Download reference genomes for these taxonomy ID's
