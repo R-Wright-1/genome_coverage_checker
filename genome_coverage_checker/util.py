@@ -8,12 +8,12 @@ from os.path import abspath, dirname
 
 def get_checkpoint(output_dir):
   cp = ''
-  for row in open(output_dir+'checkpoint.txt', 'r'):
+  for row in open(output_dir+'/checkpoint.txt', 'r'):
     cp += row
   return cp
 
 def update_checkpoint(output_dir, cp):
-  with open(output_dir+'checkpoint.txt', 'w') as f:
+  with open(output_dir+'/checkpoint.txt', 'w') as f:
     c = f.write(str(cp))
   return cp
   
@@ -130,7 +130,7 @@ def get_assembly_summaries(assembly_folder, all_domains, representative_only):
     if not os.path.exists(assembly_folder+'assembly_summary_refseq.txt'):
       command_download = 'wget -q ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/assembly_summary_refseq.txt -O '+assembly_folder+'assembly_summary_refseq.txt'
       dl = os.system(command_download)
-    assemblies = pd.read_csv(assembly_folder+'assembly_summary_refseq.txt', header=1, index_col=0, sep='\t')
+    assemblies = pd.read_csv(assembly_folder+'assembly_summary_refseq.txt', header=1, index_col=0, sep='\t', low_memory=False)
   assemblies_ref = assemblies[assemblies['refseq_category'] == 'reference genome']
   assemblies_rep = assemblies[assemblies['refseq_category'] == 'representative genome']
   if representative_only:
@@ -141,6 +141,7 @@ def get_assembly_summaries(assembly_folder, all_domains, representative_only):
   assemblies = assemblies.drop_duplicates(subset='species_taxid')
   assemblies['species_taxid'] = assemblies['species_taxid'].astype(str)
   assemblies = assemblies.set_index('species_taxid')
+  assemblies.to_csv(assembly_folder+'assemblies_using.csv')
   return assemblies
 
 def write_file(name, list_to_write):
@@ -152,7 +153,15 @@ def write_file(name, list_to_write):
 def download_genomes(taxid, assembly_folder, output_dir, all_domains, representative_only, n_proc):
   assemblies = get_assembly_summaries(assembly_folder, all_domains, representative_only)
   download_list, unzip_genomes = [], []
-  taxid_list = [tax for tax in taxid]
+  no_genome, taxid_list = [], []
+  for tax in taxid:
+    if tax in assemblies.index.values:
+      taxid_list.append(tax)
+    else:
+      if representative_only:
+        no_genome.append(tax+'_'+taxid[tax].replace(' ', '_')+'.fna: not in NCBI assembly summary. You could try setting representative only to false incase this taxonomy ID has no representative genome.')
+      else:
+        no_genome.append(tax+'_'+taxid[tax].replace(' ', '_')+'.fna: not in NCBI assembly summary')
   assemblies = assemblies.loc[taxid_list, ['ftp_path']]
   for tax in taxid_list:
     genome_name = tax+'_'+taxid[tax].replace(' ', '_')+'.fna'
@@ -167,7 +176,6 @@ def download_genomes(taxid, assembly_folder, output_dir, all_domains, representa
   os.system('python '+dirname(abspath(__file__))+'/run_commands_multiprocessing.py --commands '+output_dir+'genome_download_commands.txt --processors '+str(n_proc))
   os.system('python '+dirname(abspath(__file__))+'/run_commands_multiprocessing.py --commands '+output_dir+'genome_unzip_commands.txt --processors '+str(n_proc))
   got_genomes = {}
-  no_genome = []
   for tax in taxid_list:
     genome_name = tax+'_'+taxid[tax].replace(' ', '_')+'.fna'
     if not os.path.exists(output_dir+'genomes/'+genome_name):
@@ -216,12 +224,12 @@ def combine_convert_files(taxid, output_dir, samples, group_samples, n_proc):
         all_fastq.append(output_dir+'reads_mapped/'+taxid_group)
   write_file(output_dir+'run_combine_files_commands.txt', combine_commands)
   os.system('python '+dirname(abspath(__file__))+'/run_commands_multiprocessing.py --commands '+output_dir+'run_combine_files_commands.txt --processors '+str(n_proc))
-  
+
   #remove duplicate reads next
   remove_duplicates_files = [output_dir+'reads_mapped/'+f for f in os.listdir(output_dir+'reads_mapped/') if '.fq' in f]
   write_file(output_dir+'run_remove_duplicate_reads.txt', remove_duplicates_files)
   os.system('python '+dirname(abspath(__file__))+'/remove_duplicate_reads.py --files '+output_dir+'run_remove_duplicate_reads.txt --processors '+str(n_proc))
-  
+
   convert_commands = []
   all_files = []
   for fq in all_fastq:
@@ -238,6 +246,7 @@ def run_quast(all_files, taxid, output_dir, n_proc):
     tid = file.split('_')[-1]
     genome_file = output_dir+'genomes/'+tid+'_'+taxid[tid].replace(' ', '_')+'.fna'
     command = 'quast.py '+file+'.fa -r '+genome_file+' -o '+output_dir+'/QUAST/'+file.split('/')[-1]+' --min-contig 10 --min-identity 80 --no-plots --no-html --no-icarus --silent'
+    command += ' >> '+output_dir+'/quast_terminal_output.txt'
     quast_commands.append(command)
   write_file(output_dir+'run_quast_commands.txt', quast_commands)
   os.system('python '+dirname(abspath(__file__))+'/run_commands_multiprocessing.py --commands '+output_dir+'run_quast_commands.txt --processors '+str(n_proc))
@@ -249,6 +258,7 @@ def make_bowtie2_databases(taxid, output_dir, n_proc):
     genome_file = output_dir+'genomes/'+tid+'_'+taxid[tid].replace(' ', '_')+'.fna'
     bowtie2_file = output_dir+'bowtie2_db/'+tid+'_'+taxid[tid].replace(' ', '_')
     command = 'bowtie2-build --quiet '+genome_file+' '+bowtie2_file
+    command += ' >> '+output_dir+'/bowtie2_terminal_output.txt'
     bowtie2_commands.append(command)
   write_file(output_dir+'run_bowtie2_database_commands.txt', bowtie2_commands)
   os.system('python '+dirname(abspath(__file__))+'/run_commands_multiprocessing.py --commands '+output_dir+'run_bowtie2_database_commands.txt --processors '+str(n_proc))
@@ -260,9 +270,9 @@ def run_bowtie2(all_files, taxid, output_dir, n_proc):
     tid = file.split('_')[-1]
     bowtie2_file = output_dir+'bowtie2_db/'+tid+'_'+taxid[tid].replace(' ', '_')
     out_name = output_dir+'/bowtie2_mapped/'+file.split('/')[-1]
-    command_bt2 = 'bowtie2 --quiet --threads 1 -x '+bowtie2_file+ ' -U '+file+'.fq --no-unal -S '+out_name+'.sam'
+    command_bt2 = 'bowtie2 --quiet --threads 1 -x '+bowtie2_file+ ' -U '+file+'.fq --no-unal -S '+out_name+'.sam >> '+output_dir+'/bowtie2_terminal_output.txt'
     command_view = 'samtools view -b -F 4 '+out_name+'.sam > '+out_name+'.bam'
-    command_fasta = 'samtools fasta '+out_name+'.bam > '+out_name+'.fasta'
+    command_fasta = 'samtools fasta '+out_name+'.bam -0 '+out_name+'.fasta --verbosity 0'
     bowtie2_commands.append(command_bt2)
     view_commands.append(command_view)
     fasta_commands.append(command_fasta)
@@ -310,7 +320,7 @@ def collate_output(all_files, taxid, output_dir, kreports, samples, group_sample
       except:
         genome_frac, dup_ratio = 0, ''
       quast_out[f] = [ref_len, ref_gc, nreads, quast_gc, genome_frac, dup_ratio, unaligned, aligned_length]
-  
+
   #get bowtie2 outputs
   if not skip_bowtie2:
     bowtie2_out = {}
@@ -320,7 +330,7 @@ def collate_output(all_files, taxid, output_dir, kreports, samples, group_sample
         for row in open(output_dir+'bowtie2_mapped/'+f+'.fasta', 'r'):
           if row[0] == '>': count += 1
       bowtie2_out[f] = count
-  
+
   #get kraken counts for each sample or each group of samples
   kraken_counts = {}
   tax_list = [t for t in taxid]
@@ -330,7 +340,7 @@ def collate_output(all_files, taxid, output_dir, kreports, samples, group_sample
     for tax in tax_list:
       krak_red = kreports.loc[int(tax), group_samples[group]].values
       kraken_counts[group+'_'+tax] = sum(krak_red)
-  
+
   #now compile all together
   first_row = ['Sample', 'taxid', 'Species name', 'Reference genome length (bp)', 'Kraken reads assigned', 'QUAST reads mapped', 'QUAST genome fraction (%)', 'QUAST duplication ratio', 'QUAST aligned length']
   if not skip_coverage:
@@ -385,8 +395,8 @@ def collate_output(all_files, taxid, output_dir, kreports, samples, group_sample
   return
 
 def clean_up(output_dir):
-  files = ['genome_download_commands.txt', 'genome_unzip_commands.txt', 'get_genome_coverage_folders.txt', 'run_bowtie2_commands.txt', 'run_bowtie2_database_commands.txt', 'run_combine_files_commands.txt', 'run_convert_fastq_commands.txt', 'run_extract_reads_commands.txt', 'run_fasta_commands.txt', 'run_quast_commands.txt', 'run_view_commands.txt']
-  # for f in files:
-  #   os.system('rm '+output_dir+'/'+f)
+  files = ['genome_download_commands.txt', 'genome_unzip_commands.txt', 'get_genome_coverage_folders.txt', 'run_bowtie2_commands.txt', 'run_bowtie2_database_commands.txt', 'run_combine_files_commands.txt', 'run_convert_fastq_commands.txt', 'run_extract_reads_commands.txt', 'run_fasta_commands.txt', 'run_quast_commands.txt', 'run_view_commands.txt', 'run_remove_duplicate_reads.txt', 'quast_terminal_output.txt', 'bowtie2_terminal_output.txt']
+  for f in files:
+    os.system('rm '+output_dir+'/'+f)
   return
 

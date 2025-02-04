@@ -3,15 +3,12 @@
 import os
 import pandas as pd
 import sys
-#from multiprocessing import Pool
-#from multiprocessing import freeze_support
-#import numpy as np
 import argparse
-#from Bio.SeqRecord import SeqRecord
-#from Bio import SeqIO
 import pickle
-#from function_file_modified import *
 from genome_coverage_checker.util import *
+import time
+
+start_time = time.time()
 
 # 0. Get command line arguments
 parser = argparse.ArgumentParser(description='This script is to check which taxa reads have been assigned to by Kraken, pull out these reads, download reference genomes for the taxa, and map the reads to the reference genomes.')
@@ -33,7 +30,7 @@ parser.add_argument('--output_dir', dest='output_dir', default=None,
 #                     help="The location of the executable quast.py script (folder containing QUAST)")
 parser.add_argument('--read_lim', dest='read_lim', default=None,
                     help="Look at all prokaryotic taxa with > this number of reads mapped by Kraken")
-parser.add_argument('--read_mean', dest='read_mean', default=100,
+parser.add_argument('--read_mean', dest='read_mean', default=None,
                     help="Look at all prokaryotic taxa with > this number of mean reads mapped by Kraken within sample groupings")
 parser.add_argument('--assembly_folder', dest='assembly_folder', default=None,
                     help="The folder containing the assembly summaries for bacteria and archaea")
@@ -44,7 +41,7 @@ parser.add_argument('--species', dest='species', default=None,
 parser.add_argument('--project_name', dest='project_name', default=None,
                     help="Name of this project")
 parser.add_argument('--rerun', dest='rerun', default=False, action='store_true',
-                    help="If this is set to True, it will re-run the extraction of reads from samples regardless of whether the files already exist")
+                    help="If this is set to True, it will re-run everything regardless of whether the folder and a checkpoint already exist")
 parser.add_argument('--all_domains', dest='all_domains', default=False, action='store_true',
                     help="The default for coverage checker is for only the genomes of prokaryotes to be downloaded and checked. If you'd like to include all genomes then add this flag.")
 parser.add_argument('--representative_only', dest='representative_only', default=False, action='store_true',
@@ -72,59 +69,127 @@ else: read_lim = int(read_lim)
 #check whether we've already run this and which checkpoint we're at
 if rerun:
   cp = '0'
-elif os.path.exists(output_dir+'checkpoint.txt'):
+elif os.path.exists(output_dir+'/checkpoint.txt'):
   cp = get_checkpoint(output_dir)
+  print("Got information from previous run: already at "+cp)
 else:
   cp = '0'
 
 #if not rerun and cp not 0, check whether the arguments given are the same?
+all_args = [wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup]
+if cp != '0':
+  if os.path.exists(output_dir+'/args.pickle'):
+    with open(output_dir+'/args.pickle', 'rb') as f:
+      old_args = pickle.load(f)
+    if all_args != old_args:
+      sys.exit("You've tried to run coverage checker again in a directory that already exists with different command line options. Please provide a new option for --output_dir and try again.")
+    
 
 # 1. Run the initial checks
-wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, md, samples, taxid_name = run_initial_checks(wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun) #run all of the initial checks to ensure that all of the folders and files exist before starting to try and run anything
-cp = update_checkpoint(output_dir, "1_initial_checks_run")
+if cp == '0':
+  print("Running initial checks")
+  wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, md, samples, taxid_name = run_initial_checks(wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun) #run all of the initial checks to ensure that all of the folders and files exist before starting to try and run anything
+  all_args = [wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup]
+  with open(output_dir+'/args.pickle', 'wb') as f:
+    pickle.dump(all_args, f)
+  cp = update_checkpoint(output_dir, "1_initial_checks_run")
+  print("Completed check-point 1 initial checks")
+else:
+  print("Skipping initial checks because check-point wasn't 0")
+  
 
 # 2. Read in all kreports and combine them to get the genomes that we'll need
-group_samples, taxid, kreports = get_kreports(samples, kraken_kreport_dir, output_dir, md, read_lim, read_mean, project_name)
-cp = update_checkpoint(output_dir, "2_combined_kreports")
+if cp == "1_initial_checks_run":
+  print("Reading in kreports and combining them")
+  group_samples, taxid, kreports = get_kreports(samples, kraken_kreport_dir, output_dir, md, read_lim, read_mean, project_name)
+  cp = update_checkpoint(output_dir, "2_combined_kreports")
+  print("Completed check-point 2 combined kreports")
+else:
+  print("Skipping 2_combined_kreports because check-point wasn't 1_initial_checks_run")
 
 # 3. Download all genomes
-taxid = download_genomes(taxid, assembly_folder, output_dir, all_domains, representative_only, n_proc)
-cp = update_checkpoint(output_dir, "3_downloaded_genomes")
+if cp == "2_combined_kreports":
+  print("Downloading all genomes")
+  taxid = download_genomes(taxid, assembly_folder, output_dir, all_domains, representative_only, n_proc)
+  cp = update_checkpoint(output_dir, "3_downloaded_genomes")
+  print("Completed check-point 3 downloaded genomes")
+else:
+  print("Skipping 3_downloaded_genomes because check-point wasn't 2_combined_kreports")
 
 # 4. Extract the reads for each taxonomy ID
-extract_reads(taxid, output_dir, samples, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, n_proc)
-cp = update_checkpoint(output_dir, "4_extracted_reads")
+if cp == "3_downloaded_genomes":
+  print("Extracting reads for all taxonomy ID's")
+  extract_reads(taxid, output_dir, samples, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, n_proc)
+  cp = update_checkpoint(output_dir, "4_extracted_reads")
+  print("Completed check-point 4 extracted all reads")
+else:
+  print("Skipping 4_extracted_reads because check-point wasn't 3_downloaded_genomes")
 
 # 5. Combine the files for each taxonomy ID (across multiple samples for the sample groupings)
-all_files = combine_convert_files(taxid, output_dir, samples, group_samples, n_proc)
-cp = update_checkpoint(output_dir, "5_combined_files")
+if cp == "4_extracted_reads":
+  print("Combining files for each taxonomy ID")
+  all_files = combine_convert_files(taxid, output_dir, samples, group_samples, n_proc)
+  cp = update_checkpoint(output_dir, "5_combined_files")
+  print("Completed check-point 5 combined files")
+else:
+  print("Skipping 5_combined_files because check-point wasn't 4_extracted_reads")
 
 # 6. Run QUAST
-run_quast(all_files, taxid, output_dir, n_proc)
-cp = update_checkpoint(output_dir, "6_quast_run")
+if cp == "5_combined_files":
+  print("Running QUAST")
+  run_quast(all_files, taxid, output_dir, n_proc)
+  cp = update_checkpoint(output_dir, "6_quast_run")
+  print("Completed check-point 6 QUAST run")
+else:
+  print("Skipping 6_quast_run because check-point wasn't 5_combined_files")
 
 # 7. Make bowtie2 databases & run bowtie2 for all taxonomy ID's
-if skip_bowtie2:
-  cp = update_checkpoint(output_dir, "7_bowtie2_run")
+if cp == "6_quast_run":
+  if skip_bowtie2:
+    cp = update_checkpoint(output_dir, "7_bowtie2_run")
+    print("Skipped check-point 7 Bowtie2 run")
+  else:
+    print("Running Bowtie2")
+    make_bowtie2_databases(taxid, output_dir, n_proc)
+    run_bowtie2(all_files, taxid, output_dir, n_proc)
+    cp = update_checkpoint(output_dir, "7_bowtie2_run")
+    print("Completed check-point 7 Bowtie2 run")
 else:
-  make_bowtie2_databases(taxid, output_dir, n_proc)
-  run_bowtie2(all_files, taxid, output_dir, n_proc)
-  cp = update_checkpoint(output_dir, "7_bowtie2_run")
+  print("Skipping 7_bowtie2_run because check-point wasn't 6_quast_run")
 
 # 8. Get the coverage and mapping of reads across the genomes
-if skip_coverage:
-  cp = update_checkpoint(output_dir, "8_got_coverage")
+if cp == "7_bowtie2_run":
+  if skip_coverage:
+    cp = update_checkpoint(output_dir, "8_got_coverage")
+    print("Skipped check-point 8 getting coverage across genomes")
+  else:
+    get_coverage_across_genomes(all_files, taxid, output_dir, n_proc)
+    cp = update_checkpoint(output_dir, "8_got_coverage")
+    print("Completed check-point 8 got coverage across genomes")
 else:
-  get_coverage_across_genomes(all_files, taxid, output_dir, n_proc)
-  cp = update_checkpoint(output_dir, "8_got_coverage")
+  print("Skipping 8_got_coverage because check-point wasn't 7_bowtie2_run")
   
 # 9. Collate the output
-collate_output(all_files, taxid, output_dir, kreports, samples, group_samples, skip_bowtie2, skip_coverage)
-cp = update_checkpoint(output_dir, "9_collate_output")
+if cp == "8_got_coverage":
+  print("Collating all output")
+  collate_output(all_files, taxid, output_dir, kreports, samples, group_samples, skip_bowtie2, skip_coverage)
+  cp = update_checkpoint(output_dir, "9_collate_output")
+  print("Completed check-point 9 collating output")
+else:
+  print("Skipping 9_collate_output because check-point wasn't 8_got_coverage")
 
 # 10. Clean up all of the intermediate files
-if skip_cleanup:
-  cp = update_checkpoint(output_dir, "10_cleanup")
+if cp == "9_collate_output":
+  if skip_cleanup:
+    cp = update_checkpoint(output_dir, "10_cleanup")
+    print("Skipping check-point 10 cleanup of intermediate files")
+  else:
+    print("Cleaning up directory")
+    clean_up(output_dir)
+    cp = update_checkpoint(output_dir, "10_cleanup")
+    print("Completed check-point 10 cleanup of intermediate files")
 else:
-  clean_up(output_dir)
-  cp = update_checkpoint(output_dir, "10_cleanup")
+  print("Skipping 10_cleanup because check-point wasn't 9_collate_output")
+  
+print("Finished running genome coverage checker pipeline.")
+print("Running time: --- %s seconds ---" % round((time.time() - start_time), 2))
