@@ -29,9 +29,9 @@ parser.add_argument('--output_dir', dest='output_dir', default=None,
 # parser.add_argument('--quast_loc', dest='quast_loc', default=None,
 #                     help="The location of the executable quast.py script (folder containing QUAST)")
 parser.add_argument('--read_lim', dest='read_lim', default=None,
-                    help="Look at all prokaryotic taxa with > this number of reads mapped by Kraken")
+                    help="Look at all taxa with > this number of reads mapped by Kraken")
 parser.add_argument('--read_mean', dest='read_mean', default=None,
-                    help="Look at all prokaryotic taxa with > this number of mean reads mapped by Kraken within sample groupings")
+                    help="Look at all taxa with > this number of mean reads mapped by Kraken within sample groupings")
 parser.add_argument('--assembly_folder', dest='assembly_folder', default=None,
                     help="The folder containing the assembly summaries for bacteria and archaea")
 parser.add_argument('--sample_metadata', dest='sample_metadata', default=None,
@@ -41,7 +41,7 @@ parser.add_argument('--species', dest='species', default=None,
 parser.add_argument('--project_name', dest='project_name', default=None,
                     help="Name of this project")
 parser.add_argument('--rerun', dest='rerun', default=False, action='store_true',
-                    help="If this is set to True, it will re-run everything regardless of whether the folder and a checkpoint already exist")
+                    help="If this flag is added, it will re-run everything regardless of whether the folder and a checkpoint already exist")
 parser.add_argument('--all_domains', dest='all_domains', default=False, action='store_true',
                     help="The default for coverage checker is for only the genomes of prokaryotes to be downloaded and checked. If you'd like to include all genomes then add this flag.")
 parser.add_argument('--representative_only', dest='representative_only', default=False, action='store_true',
@@ -58,13 +58,15 @@ args = parser.parse_args()
 sample_name, n_proc, sample_dir, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir = args.sample_name, int(args.n_proc), args.sample_dir, args.fastq_dir, args.kraken_kreport_dir, args.kraken_outraw_dir, args.output_dir
 if sample_dir != None:
   fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir = sample_dir, sample_dir, sample_dir, sample_dir
-read_lim, read_mean, assembly_folder = args.read_lim, int(args.read_mean), args.assembly_folder
+read_lim, read_mean, assembly_folder = args.read_lim, args.read_mean, args.assembly_folder
 if assembly_folder == None:
   assembly_folder = output_dir
 sample_metadata, species, project_name, rerun, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup = args.sample_metadata, args.species, args.project_name, args.rerun, args.all_domains, args.representative_only, args.skip_bowtie2, args.skip_coverage, args.skip_cleanup
 wd = os.getcwd()
 if read_lim == None: read_lim = 0
 else: read_lim = int(read_lim)
+if read_mean == None: read_mean = 0
+else: read_mean = int(read_mean)
 
 #check whether we've already run this and which checkpoint we're at
 if rerun:

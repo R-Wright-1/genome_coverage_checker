@@ -152,6 +152,7 @@ def write_file(name, list_to_write):
 
 def download_genomes(taxid, assembly_folder, output_dir, all_domains, representative_only, n_proc):
   assemblies = get_assembly_summaries(assembly_folder, all_domains, representative_only)
+  punctuation = ['/', '(', ')', ':', ',', "'", '+', '!', ']', '=', '[', ':', '#', '*']
   download_list, unzip_genomes = [], []
   no_genome, taxid_list = [], []
   for tax in taxid:
@@ -165,6 +166,8 @@ def download_genomes(taxid, assembly_folder, output_dir, all_domains, representa
   assemblies = assemblies.loc[taxid_list, ['ftp_path']]
   for tax in taxid_list:
     genome_name = tax+'_'+taxid[tax].replace(' ', '_')+'.fna'
+    for p in punctuation:
+      genome_name = genome_name.replace(p, '-')
     if not os.path.exists(output_dir+'genomes/'+genome_name):
       ftp_path = assemblies.loc[tax, 'ftp_path']
       fname = ftp_path.split('/')[-1]
@@ -178,6 +181,8 @@ def download_genomes(taxid, assembly_folder, output_dir, all_domains, representa
   got_genomes = {}
   for tax in taxid_list:
     genome_name = tax+'_'+taxid[tax].replace(' ', '_')+'.fna'
+    for p in punctuation:
+      genome_name = genome_name.replace(p, '-')
     if not os.path.exists(output_dir+'genomes/'+genome_name):
       no_genome.append(genome_name)
     else:
