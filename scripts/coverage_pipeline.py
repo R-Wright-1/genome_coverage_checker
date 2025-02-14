@@ -70,7 +70,7 @@ if sample_dir != None:
 if genome_dir == None:
   genome_dir = output_dir+'/genomes/'
 if bowtie2_db_dir == None:
-  bowtie2_db_dir = output_dir+'bowtie2_db/'
+  bowtie2_db_dir = output_dir+'/bowtie2_db/'
 read_lim, read_mean, assembly_folder = args.read_lim, args.read_mean, args.assembly_folder
 if assembly_folder == None:
   assembly_folder = output_dir
