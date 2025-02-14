@@ -26,6 +26,10 @@ parser.add_argument('--kraken_outraw_dir', dest='kraken_outraw_dir', default=Non
                     help="The directory containing the kraken outraw files")
 parser.add_argument('--output_dir', dest='output_dir', default=None,
                     help="The directory to save the output files to")
+parser.add_argument('--genome_dir', dest='genome_dir', default=None,
+                    help="The directory to save the downloaded genomes to. The default is for them to be added to the output_dir")
+parser.add_argument('--bowtie2_db_dir', dest='bowtie2_db_dir', default=None,
+                    help="The directory to save the bowtie2 database to. The default is for them to be added to the output_dir")
 # parser.add_argument('--quast_loc', dest='quast_loc', default=None,
 #                     help="The location of the executable quast.py script (folder containing QUAST)")
 parser.add_argument('--read_lim', dest='read_lim', default=None,
@@ -46,22 +50,31 @@ parser.add_argument('--all_domains', dest='all_domains', default=False, action='
                     help="The default for coverage checker is for only the genomes of prokaryotes to be downloaded and checked. If you'd like to include all genomes then add this flag.")
 parser.add_argument('--representative_only', dest='representative_only', default=False, action='store_true',
                     help="The default for coverage checker is to use all genomes. If you'd like to limit the checking to only representative and reference genomes then add this flag.")
+parser.add_argument('--bowtie2_setting', dest='bowtie2_setting', default='sensitive',
+                    help="Th default bowtie2 setting to use. Options are very-fast, fast, sensitive or very-sensitive. Default is sensitive (same as Bowtie2 default)")
 parser.add_argument('--skip_bowtie2', dest='skip_bowtie2', default=False, action='store_true',
                     help="Whether to skip bowtie2 mapping. Default is to run bowtie2, but bowtie2 can be difficult to install on a mac so add this flag if you don't want to install bowtie2.")
 parser.add_argument('--skip_coverage', dest='skip_coverage', default=False, action='store_true',
                     help="Whether to skip getting coverage for all reads across the genomes. This can take a little while, so you can skip it if you don't think that this output is useful to you.")
 parser.add_argument('--skip_cleanup', dest='skip_cleanup', default=False, action='store_true',
                     help="If you want to skip the cleanup. This will keep the intermediate files containing some of the commands run, e.g. for making bowtie2 databases. They may be helpful if you're trying to troubleshoot issues.")
+parser.add_argument('--skip_duplicate_check', dest='skip_duplicate_check', default=False, action='store_true',
+                    help="If you want to skip the check for duplicates within the fastq files. Note that this step can take a while if you have a lot of samples - it was mainly added because you'll get some weird QUAST/Bowtie2 results if you have duplicate reads in your files. This can happen if you rerun coverage checker using the same output folder.")
+
 
 #Read in the command line arguments
 args = parser.parse_args()
-sample_name, n_proc, sample_dir, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir = args.sample_name, int(args.n_proc), args.sample_dir, args.fastq_dir, args.kraken_kreport_dir, args.kraken_outraw_dir, args.output_dir
+sample_name, n_proc, sample_dir, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, genome_dir, bowtie2_db_dir = args.sample_name, int(args.n_proc), args.sample_dir, args.fastq_dir, args.kraken_kreport_dir, args.kraken_outraw_dir, args.output_dir, args.genome_dir, args.bowtie2_db_dir
 if sample_dir != None:
   fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir = sample_dir, sample_dir, sample_dir, sample_dir
+if genome_dir == None:
+  genome_dir = output_dir+'/genomes/'
+if bowtie2_db_dir == None:
+  bowtie2_db_dir = output_dir+'bowtie2_db/'
 read_lim, read_mean, assembly_folder = args.read_lim, args.read_mean, args.assembly_folder
 if assembly_folder == None:
   assembly_folder = output_dir
-sample_metadata, species, project_name, rerun, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup = args.sample_metadata, args.species, args.project_name, args.rerun, args.all_domains, args.representative_only, args.skip_bowtie2, args.skip_coverage, args.skip_cleanup
+sample_metadata, species, project_name, rerun, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup, skip_duplicate_check, bowtie2_setting = args.sample_metadata, args.species, args.project_name, args.rerun, args.all_domains, args.representative_only, args.skip_bowtie2, args.skip_coverage, args.skip_cleanup, args.skip_duplicate_check, args.bowtie2_setting
 wd = os.getcwd()
 if read_lim == None: read_lim = 0
 else: read_lim = int(read_lim)
@@ -78,21 +91,21 @@ else:
   cp = '0'
 
 #if not rerun and cp not 0, check whether the arguments given are the same?
-all_args = [wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup]
+all_args = [wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup, skip_duplicate_check, bowtie2_setting, genome_dir, bowtie2_db_dir]
 if cp != '0':
-  if os.path.exists(output_dir+'/args.pickle'):
-    with open(output_dir+'/args.pickle', 'rb') as f:
+  if os.path.exists(output_dir+'/pickle_intermediates/args.pickle'):
+    with open(output_dir+'/pickle_intermediates/args.pickle', 'rb') as f:
       old_args = pickle.load(f)
-    if all_args != old_args:
+    if all_args[:-2] != old_args[:-2]:
       sys.exit("You've tried to run coverage checker again in a directory that already exists with different command line options. Please provide a new option for --output_dir and try again.")
     
 
 # 1. Run the initial checks
 if cp == '0':
   print("Running initial checks")
-  wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, md, samples, taxid_name = run_initial_checks(wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun) #run all of the initial checks to ensure that all of the folders and files exist before starting to try and run anything
-  all_args = [wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup]
-  with open(output_dir+'/args.pickle', 'wb') as f:
+  wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, md, samples, taxid_name, genome_dir, bowtie2_db_dir = run_initial_checks(wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, genome_dir, bowtie2_db_dir) #run all of the initial checks to ensure that all of the folders and files exist before starting to try and run anything
+  all_args = [wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup, skip_duplicate_check, bowtie2_setting]
+  with open(output_dir+'/pickle_intermediates/args.pickle', 'wb') as f:
     pickle.dump(all_args, f)
   cp = update_checkpoint(output_dir, "1_initial_checks_run")
   print("Completed check-point 1 initial checks")
@@ -103,20 +116,34 @@ else:
 # 2. Read in all kreports and combine them to get the genomes that we'll need
 if cp == "1_initial_checks_run":
   print("Reading in kreports and combining them")
-  group_samples, taxid, kreports = get_kreports(samples, kraken_kreport_dir, output_dir, md, read_lim, read_mean, project_name)
+  group_samples, taxid, kreports = get_kreports(samples, kraken_kreport_dir, output_dir, md, read_lim, read_mean, project_name, taxid_name)
+  names, objects = ['group_samples', 'taxid', 'kreports'], [group_samples, taxid, kreports]
+  for n in range(len(names)):
+    with open(output_dir+'/pickle_intermediates/'+names[n]+'.pickle', 'wb') as f:
+      pickle.dump(objects[n], f)
   cp = update_checkpoint(output_dir, "2_combined_kreports")
   print("Completed check-point 2 combined kreports")
 else:
   print("Skipping 2_combined_kreports because check-point wasn't 1_initial_checks_run")
+  names, objects = ['group_samples', 'taxid', 'kreports'], []
+  for n in range(len(names)):
+    with open(output_dir+'/pickle_intermediates/'+names[n]+'.pickle', 'rb') as f:
+      objects.append(pickle.load(f))
+  group_samples, taxid, kreports = objects
+  
 
 # 3. Download all genomes
 if cp == "2_combined_kreports":
   print("Downloading all genomes")
-  taxid = download_genomes(taxid, assembly_folder, output_dir, all_domains, representative_only, n_proc)
+  taxid = download_genomes(taxid, assembly_folder, output_dir, all_domains, representative_only, n_proc, genome_dir)
+  with open(output_dir+'/pickle_intermediates/taxid.pickle', 'wb') as f:
+    pickle.dump(taxid, f)
   cp = update_checkpoint(output_dir, "3_downloaded_genomes")
   print("Completed check-point 3 downloaded genomes")
 else:
   print("Skipping 3_downloaded_genomes because check-point wasn't 2_combined_kreports")
+  with open(output_dir+'/pickle_intermediates/taxid.pickle', 'rb') as f:
+    taxid = pickle.load(f)
 
 # 4. Extract the reads for each taxonomy ID
 if cp == "3_downloaded_genomes":
@@ -130,16 +157,20 @@ else:
 # 5. Combine the files for each taxonomy ID (across multiple samples for the sample groupings)
 if cp == "4_extracted_reads":
   print("Combining files for each taxonomy ID")
-  all_files = combine_convert_files(taxid, output_dir, samples, group_samples, n_proc)
+  all_files = combine_convert_files(taxid, output_dir, samples, group_samples, n_proc, skip_duplicate_check)
+  with open(output_dir+'/pickle_intermediates/all_files.pickle', 'wb') as f:
+    pickle.dump(all_files, f)
   cp = update_checkpoint(output_dir, "5_combined_files")
   print("Completed check-point 5 combined files")
 else:
   print("Skipping 5_combined_files because check-point wasn't 4_extracted_reads")
+  with open(output_dir+'/pickle_intermediates/all_files.pickle', 'rb') as f:
+    all_files = pickle.load(f)
 
 # 6. Run QUAST
 if cp == "5_combined_files":
   print("Running QUAST")
-  run_quast(all_files, taxid, output_dir, n_proc)
+  run_quast(all_files, taxid, output_dir, n_proc, genome_dir)
   cp = update_checkpoint(output_dir, "6_quast_run")
   print("Completed check-point 6 QUAST run")
 else:
@@ -152,8 +183,8 @@ if cp == "6_quast_run":
     print("Skipped check-point 7 Bowtie2 run")
   else:
     print("Running Bowtie2")
-    make_bowtie2_databases(taxid, output_dir, n_proc)
-    run_bowtie2(all_files, taxid, output_dir, n_proc)
+    make_bowtie2_databases(taxid, output_dir, n_proc, bowtie2_db_dir, genome_dir)
+    run_bowtie2(all_files, taxid, output_dir, n_proc, bowtie2_setting, bowtie2_db_dir)
     cp = update_checkpoint(output_dir, "7_bowtie2_run")
     print("Completed check-point 7 Bowtie2 run")
 else:

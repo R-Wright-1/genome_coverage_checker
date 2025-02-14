@@ -40,13 +40,18 @@ def get_genome_coverage(folder):
     didnt_work = False
   except:
     didnt_work = True
-  alignments = pd.read_csv(folder+'/contigs_reports/all_alignments_'+fn+'.tsv', index_col=None, header=0, sep='\t')
-  alignments = alignments[alignments['S1'] != 'CONTIG']
+  try:
+    alignments = pd.read_csv(folder+'/contigs_reports/all_alignments_'+fn+'.tsv', index_col=None, header=0, sep='\t')
+    alignments = alignments[alignments['S1'] != 'CONTIG']
+  except:
+    return
   genome_identity, genome_coverage = [], []
   for row in alignments.index.values:
     try:
       start, end = int(alignments.loc[row, 'S1']), int(alignments.loc[row, 'E1'])
     except:
+      with open(folder.replace('QUAST', 'coverage')+'.txt', 'w') as f:
+        w = f.write(write_string)
       return
     genome_identity.append(str(alignments.loc[row, 'IDY']))
     adding = ref_chromosome_dict[alignments.loc[row, 'Reference']]
