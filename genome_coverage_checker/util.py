@@ -202,19 +202,25 @@ def download_genomes(taxid, assembly_folder, output_dir, all_domains, representa
   return got_genomes
 
 def extract_reads(taxid, output_dir, samples, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, n_proc):
-  taxid_list = ' '.join([tax for tax in taxid])
-  command_list = []
-  for sample in samples:
-    command = 'python '+dirname(abspath(__file__))+'/extract_kraken_reads_modified.py '
-    command += '-k '+kraken_outraw_dir+'/'+sample+'.kraken '
-    command += '-s '+fastq_dir+'/'+sample+'.fastq '
-    command += '-o '+output_dir+'/reads_mapped/'+sample+'.fq '
-    command += '-t '+taxid_list+' --include-children '
-    if os.path.exists(kraken_kreport_dir+sample+'.kreport'):
-      command += '--report '+kraken_kreport_dir+sample+'.kreport --fastq-output'
-    else:
-      command += '--report '+kraken_kreport_dir+sample+'.kreport --fastq-output'
-    command_list.append(command)
+  all_taxid = [tax for tax in taxid]
+  this_taxid = []
+  for l in range(len(taxid)):
+    this_taxid.append(taxid[l])
+    if l % 12000 == 0 and l != 0 or l == len(taxid)-1:
+      taxid_list = ' '.join(this_taxid)
+      this_taxid = []
+      command_list = []
+      for sample in samples:
+        command = 'python '+dirname(abspath(__file__))+'/extract_kraken_reads_modified.py '
+        command += '-k '+kraken_outraw_dir+'/'+sample+'.kraken '
+        command += '-s '+fastq_dir+'/'+sample+'.fastq '
+        command += '-o '+output_dir+'/reads_mapped/'+sample+'.fq '
+        command += '-t '+taxid_list+' --include-children '
+        if os.path.exists(kraken_kreport_dir+sample+'.kreport'):
+          command += '--report '+kraken_kreport_dir+sample+'.kreport --fastq-output'
+        else:
+          command += '--report '+kraken_kreport_dir+sample+'.kreport --fastq-output'
+        command_list.append(command)
   write_file(output_dir+'run_extract_reads_commands.txt', command_list)
   os.system('python '+dirname(abspath(__file__))+'/run_commands_multiprocessing.py --commands '+output_dir+'run_extract_reads_commands.txt --processors '+str(n_proc))
   return
