@@ -51,7 +51,7 @@ def get_genome_coverage(folder):
       start, end = int(alignments.loc[row, 'S1']), int(alignments.loc[row, 'E1'])
     except:
       with open(folder.replace('QUAST', 'coverage')+'.txt', 'w') as f:
-        w = f.write(write_string)
+        w = f.write('No alignments')
       return
     genome_identity.append(str(alignments.loc[row, 'IDY']))
     adding = ref_chromosome_dict[alignments.loc[row, 'Reference']]

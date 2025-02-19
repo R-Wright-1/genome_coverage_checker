@@ -457,6 +457,6 @@ def collate_output(all_files, taxid, output_dir, kreports, samples, group_sample
 def clean_up(output_dir):
   files = ['genome_download_commands.txt', 'genome_unzip_commands.txt', 'get_genome_coverage_folders.txt', 'run_bowtie2_commands.txt', 'run_bowtie2_database_commands.txt', 'run_combine_files_commands.txt', 'run_convert_fastq_commands.txt', 'run_extract_reads_commands.txt', 'run_fasta_commands.txt', 'run_quast_commands.txt', 'run_view_commands.txt', 'run_remove_duplicate_reads.txt', 'quast_terminal_output.txt', 'bowtie2_terminal_output.txt']
   for f in files:
-    os.system('rm '+output_dir+'/'+f)
+    if os.path.exists(output_dir+'/'+f): os.system('rm '+output_dir+'/'+f)
   return
 
