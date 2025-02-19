@@ -44,7 +44,7 @@ def run_initial_checks(wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kr
       sys.exit("This path doesn't exist: "+sample_metadata)
   
   if sample_metadata != None:
-    md = pd.read_csv(sample_metadata, header=0, index_col=0)
+    md = pd.read_csv(sample_metadata, header=0, index_col=0, low_memory=False)
     samples = list(md.index.values)
   else:
     samples = [sample_name]
@@ -84,7 +84,7 @@ def get_kreports(samples, kraken_kreport_dir, output_dir, md, read_lim, read_mea
   for sample_name in samples:
     krep = kraken_kreport_dir+sample_name+'.kreport'
     if not os.path.exists(krep): krep = kraken_kreport_dir+sample_name+'_0.0.kreport'
-    kreport = pd.read_csv(krep, header=None, sep='\t')
+    kreport = pd.read_csv(krep, header=None, sep='\t', low_memory=False)
     kreport = kreport[kreport[3] == 'S'] #keep only the species level classifications
     kreport.columns = ['Proportion of reads', 'Reads assigned to this species', 'Reads assigned to below this species', 'Rank', 'NCBI taxid', 'NCBI species name'] #rename the columns
     kreport = kreport.drop('Rank', axis=1) #drop the rank column
@@ -133,8 +133,8 @@ def get_assembly_summaries(assembly_folder, all_domains, representative_only):
       if not os.path.exists(assembly_folder+'assembly_summary_'+group+'.txt'):
         command_download = 'wget -q ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/'+group+'/assembly_summary.txt -O '+assembly_folder+'assembly_summary_'+group+'.txt'
         dl = os.system(command_download)
-    assemblies_bacteria = pd.read_csv(assembly_folder+'assembly_summary_bacteria.txt', header=1, index_col=0, sep='\t')
-    assemblies_archaea = pd.read_csv(assembly_folder+'assembly_summary_archaea.txt', header=1, index_col=0, sep='\t')
+    assemblies_bacteria = pd.read_csv(assembly_folder+'assembly_summary_bacteria.txt', header=1, index_col=0, sep='\t', low_memory=False)
+    assemblies_archaea = pd.read_csv(assembly_folder+'assembly_summary_archaea.txt', header=1, index_col=0, sep='\t', low_memory=False)
     assemblies = pd.concat([assemblies_bacteria, assemblies_archaea])
   else:
     if not os.path.exists(assembly_folder+'assembly_summary_refseq.txt'):
@@ -203,13 +203,12 @@ def download_genomes(taxid, assembly_folder, output_dir, all_domains, representa
 
 def extract_reads(taxid, output_dir, samples, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, n_proc):
   all_taxid = [tax for tax in taxid]
-  this_taxid = []
+  this_taxid, command_list = [], []
   for l in range(len(taxid)):
-    this_taxid.append(taxid[l])
+    this_taxid.append(all_taxid[l])
     if l % 12000 == 0 and l != 0 or l == len(taxid)-1:
       taxid_list = ' '.join(this_taxid)
       this_taxid = []
-      command_list = []
       for sample in samples:
         command = 'python '+dirname(abspath(__file__))+'/extract_kraken_reads_modified.py '
         command += '-k '+kraken_outraw_dir+'/'+sample+'.kraken '
@@ -364,7 +363,7 @@ def collate_output(all_files, taxid, output_dir, kreports, samples, group_sample
   for f in all_files:
     report = output_dir+'QUAST/'+f+'/report.tsv'
     if os.path.exists(report):
-      report = pd.read_csv(report, index_col=0, header=0, sep='\t')
+      report = pd.read_csv(report, index_col=0, header=0, sep='\t', low_memory=False)
       ref_len, ref_gc = report.loc['Reference length', f], report.loc['Reference GC (%)', f]
       nreads = float(report.loc['# contigs (>= 0 bp)', f])
       quast_gc = report.loc['GC (%)', f]
