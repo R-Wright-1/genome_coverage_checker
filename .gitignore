@@ -1,0 +1,3 @@
+Genome_Coverage_Checker.egg-info/*
+*/__pycache__/*
+*.DS_Store*
