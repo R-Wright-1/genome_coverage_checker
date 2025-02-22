@@ -12,12 +12,8 @@ start_time = time.time()
 
 # 0. Get command line arguments
 parser = argparse.ArgumentParser(description='This script is to check which taxa reads have been assigned to by Kraken, pull out these reads, download reference genomes for the taxa, and map the reads to the reference genomes.')
-parser.add_argument('--sample_name', dest='sample_name', default='all',
-                    help='Type the sample name as it appears without any file extension. The fastq file should be unzipped and the kraken .kreport and .kraken.txt files should also be in the same directory')
 parser.add_argument('--processors', dest='n_proc', default=1,
                     help="Number of processors to use for all multiprocessing steps (downloading genomes, pulling out reads, running QUAST)")
-parser.add_argument('--sample_dir', dest='sample_dir', default=None,
-                    help="The directory containing the fastq and kraken files, and that the output will be saved to")
 parser.add_argument('--fastq_dir', dest='fastq_dir', default=None,
                     help="The directory containing the fastq files")
 parser.add_argument('--kraken_kreport_dir', dest='kraken_kreport_dir', default=None,
@@ -64,9 +60,7 @@ parser.add_argument('--skip_duplicate_check', dest='skip_duplicate_check', defau
 
 #Read in the command line arguments
 args = parser.parse_args()
-sample_name, n_proc, sample_dir, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, genome_dir, bowtie2_db_dir = args.sample_name, int(args.n_proc), args.sample_dir, args.fastq_dir, args.kraken_kreport_dir, args.kraken_outraw_dir, args.output_dir, args.genome_dir, args.bowtie2_db_dir
-if sample_dir != None:
-  fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir = sample_dir, sample_dir, sample_dir, sample_dir
+n_proc, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, genome_dir, bowtie2_db_dir = int(args.n_proc), args.fastq_dir, args.kraken_kreport_dir, args.kraken_outraw_dir, args.output_dir, args.genome_dir, args.bowtie2_db_dir
 if genome_dir == None:
   genome_dir = output_dir+'/genomes/'
 if bowtie2_db_dir == None:
@@ -95,13 +89,13 @@ if cp != '0':
   if os.path.exists(output_dir+'/pickle_intermediates/args.pickle'):
     with open(output_dir+'/pickle_intermediates/args.pickle', 'rb') as f:
       all_args = pickle.load(f)
-    wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, md, samples, taxid_name, genome_dir, bowtie2_db_dir, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup, skip_duplicate_check, bowtie2_setting = all_args
+    wd, n_proc, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, md, samples, taxid_name, genome_dir, bowtie2_db_dir, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup, skip_duplicate_check, bowtie2_setting = all_args
     
 # 1. Run the initial checks
 if cp == '0':
   print("Running initial checks")
-  wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, md, samples, taxid_name, genome_dir, bowtie2_db_dir = run_initial_checks(wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, genome_dir, bowtie2_db_dir) #run all of the initial checks to ensure that all of the folders and files exist before starting to try and run anything
-  all_args = [wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, md, samples, taxid_name, genome_dir, bowtie2_db_dir, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup, skip_duplicate_check, bowtie2_setting]
+  wd, n_proc, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, md, samples, taxid_name, genome_dir, bowtie2_db_dir = run_initial_checks(wd, n_proc, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, genome_dir, bowtie2_db_dir) #run all of the initial checks to ensure that all of the folders and files exist before starting to try and run anything
+  all_args = [wd, n_proc, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, md, samples, taxid_name, genome_dir, bowtie2_db_dir, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup, skip_duplicate_check, bowtie2_setting]
   save_pickle(all_args, output_dir+'/pickle_intermediates/args.pickle')
   cp = update_checkpoint(output_dir, "1_initial_checks_run")
   print("Completed check-point 1 initial checks")

@@ -19,7 +19,7 @@ def update_checkpoint(output_dir, cp):
   return cp
   
 
-def run_initial_checks(wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, genome_dir, bowtie2_db_dir):
+def run_initial_checks(wd, n_proc, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, genome_dir, bowtie2_db_dir):
   #check all folders exist
   for folder in [fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder]:
     if not os.path.exists(folder):
@@ -38,17 +38,14 @@ def run_initial_checks(wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kr
       md = os.system('mkdir '+direc)
   
   #check whether at least one of sample_metadata or sample_name exist
-  if sample_name == None and sample_metadata == None:
-    sys.exit("You need to supply one of sample_name or sample_metadata")
+  if sample_metadata == None:
+    sys.exit("You need to supply sample_metadata")
   elif sample_metadata != None:
     if not os.path.exists(sample_metadata):
       sys.exit("This path doesn't exist: "+sample_metadata)
   
-  if sample_metadata != None:
-    md = pd.read_csv(sample_metadata, header=0, index_col=0, low_memory=False)
-    samples = list(md.index.values)
-  else:
-    samples = [sample_name]
+  md = pd.read_csv(sample_metadata, header=0, index_col=0, low_memory=False)
+  samples = list(md.index.values)
     
   #check all input files exist
   for sample_name in samples:
@@ -78,7 +75,7 @@ def run_initial_checks(wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kr
         w = f.write(sp+'\n')
   else:
     taxid_name = {}
-  return wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, md, samples, taxid_name, genome_dir, bowtie2_db_dir
+  return wd, n_proc, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, md, samples, taxid_name, genome_dir, bowtie2_db_dir
 
 def get_kreports(samples, kraken_kreport_dir, output_dir, md, read_lim, read_mean, project_name, taxid_name):
   kreports, taxids_kreports = [], {}
