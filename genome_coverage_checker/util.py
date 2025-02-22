@@ -5,6 +5,7 @@ import pandas as pd
 import sys
 import numpy as np
 from os.path import abspath, dirname
+import pickle
 
 def get_checkpoint(output_dir):
   cp = ''
@@ -258,6 +259,11 @@ def combine_convert_files(taxid, output_dir, samples, group_samples, n_proc, ski
   write_file(output_dir+'run_convert_fastq_commands.txt', convert_commands)
   os.system('python '+dirname(abspath(__file__))+'/run_commands_multiprocessing.py --commands '+output_dir+'run_convert_fastq_commands.txt --processors '+str(n_proc))
   return all_files
+
+def save_pickle(obj, name):
+  with open(name, 'wb') as f:
+    pickle.dump(obj, f)
+  return
 
 def run_quast(all_files, taxid, output_dir, n_proc, genome_dir):
   quast_commands = []

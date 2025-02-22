@@ -91,22 +91,18 @@ else:
   cp = '0'
 
 #if not rerun and cp not 0, check whether the arguments given are the same?
-all_args = [wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup, skip_duplicate_check, bowtie2_setting, genome_dir, bowtie2_db_dir]
 if cp != '0':
   if os.path.exists(output_dir+'/pickle_intermediates/args.pickle'):
     with open(output_dir+'/pickle_intermediates/args.pickle', 'rb') as f:
-      old_args = pickle.load(f)
-    if all_args[:-2] != old_args[:-2]:
-      sys.exit("You've tried to run coverage checker again in a directory that already exists with different command line options. Please provide a new option for --output_dir and try again.")
+      all_args = pickle.load(f)
+    wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, md, samples, taxid_name, genome_dir, bowtie2_db_dir, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup, skip_duplicate_check, bowtie2_setting = all_args
     
-
 # 1. Run the initial checks
 if cp == '0':
   print("Running initial checks")
   wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, md, samples, taxid_name, genome_dir, bowtie2_db_dir = run_initial_checks(wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, genome_dir, bowtie2_db_dir) #run all of the initial checks to ensure that all of the folders and files exist before starting to try and run anything
-  all_args = [wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup, skip_duplicate_check, bowtie2_setting]
-  with open(output_dir+'/pickle_intermediates/args.pickle', 'wb') as f:
-    pickle.dump(all_args, f)
+  all_args = [wd, n_proc, sample_dir, sample_name, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, md, samples, taxid_name, genome_dir, bowtie2_db_dir, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup, skip_duplicate_check, bowtie2_setting]
+  save_pickle(all_args, output_dir+'/pickle_intermediates/args.pickle')
   cp = update_checkpoint(output_dir, "1_initial_checks_run")
   print("Completed check-point 1 initial checks")
 else:
@@ -119,8 +115,7 @@ if cp == "1_initial_checks_run":
   group_samples, taxid, kreports = get_kreports(samples, kraken_kreport_dir, output_dir, md, read_lim, read_mean, project_name, taxid_name)
   names, objects = ['group_samples', 'taxid', 'kreports'], [group_samples, taxid, kreports]
   for n in range(len(names)):
-    with open(output_dir+'/pickle_intermediates/'+names[n]+'.pickle', 'wb') as f:
-      pickle.dump(objects[n], f)
+    save_pickle(objects[n], output_dir+'/pickle_intermediates/'+names[n]+'.pickle')
   cp = update_checkpoint(output_dir, "2_combined_kreports")
   print("Completed check-point 2 combined kreports")
 else:
@@ -136,8 +131,7 @@ else:
 if cp == "2_combined_kreports":
   print("Downloading all genomes")
   taxid = download_genomes(taxid, assembly_folder, output_dir, all_domains, representative_only, n_proc, genome_dir)
-  with open(output_dir+'/pickle_intermediates/taxid.pickle', 'wb') as f:
-    pickle.dump(taxid, f)
+  save_pickle(taxid, output_dir+'/pickle_intermediates/taxid.pickle')
   cp = update_checkpoint(output_dir, "3_downloaded_genomes")
   print("Completed check-point 3 downloaded genomes")
 else:
@@ -158,8 +152,7 @@ else:
 if cp == "4_extracted_reads":
   print("Combining files for each taxonomy ID")
   all_files = combine_convert_files(taxid, output_dir, samples, group_samples, n_proc, skip_duplicate_check)
-  with open(output_dir+'/pickle_intermediates/all_files.pickle', 'wb') as f:
-    pickle.dump(all_files, f)
+  save_pickle(all_files, output_dir+'/pickle_intermediates/all_files.pickle')
   cp = update_checkpoint(output_dir, "5_combined_files")
   print("Completed check-point 5 combined files")
 else:
