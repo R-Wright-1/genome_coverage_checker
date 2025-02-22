@@ -179,7 +179,7 @@ def single_taxon_across_samples(taxid, save_name, project_folder, samples='All')
       plot_square(axes[a], mapping[a], cc_out.loc[sample_order[s], colnames[a]], mins[a], maxs[a], rnd=rounding[a], div=div[a])
       if s == 0:
         axes[a].set_title(plot_names[a], fontweight='bold', rotation=90)
-    ax_genome.set_ylabel(sample_name, fontweight='bold', rotation=0, ha='right', va='center')
+    ax_genome.set_ylabel(sample_order[s], fontweight='bold', rotation=0, ha='right', va='center')
     xt, gm = plot_genome_coverage(ax_genome, ax_identity, sample_order[s], taxid, cc_out.loc[sample_order[s], 'Reference genome length (bp)'])
     if xt != 'NA':
       xticks, gen_means = xt, gm
@@ -273,6 +273,9 @@ if running == 'taxon':
     fig_save_name = project_folder+'figures/'+taxid
     single_taxon_across_samples(taxid, fig_save_name, project_folder, samples)
 else:
+  if samples == 'All':
+    coverage_out = pd.read_csv(project_folder+'coverage_checker_output.tsv', index_col=0, header=0, sep='\t')
+    samples = sorted(list(set(coverage_out.index.values)))
   for sample in samples:
     fig_save_name = project_folder+'figures/'+sample
     multiple_taxa_in_one_sample(fig_save_name, project_folder, taxid_list, sample, top_taxa, sort_by)
