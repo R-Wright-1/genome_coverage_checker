@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/5e06da2b-70d1-4851-9082-85f7569564bf" alt="image" width="300" />
+</p>
+
 # Genome Coverage Checker
 
 This is a repository for storing the code needed to check the genome coverage for taxa identified by Kraken 2 in metagenome samples. It is currently still a work in progress and the code needs streamlining, checkpoints added, etc., but I welcome any feedback on it. 
