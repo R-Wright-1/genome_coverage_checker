@@ -155,8 +155,8 @@ def single_taxon_across_samples(taxid, save_name, project_folder, samples='All')
     sample_order = samples
   
   l = len(sample_order)
-  fig = plt.figure(figsize=(20,l))
   l += 3
+  fig = plt.figure(figsize=(20,l))
   fig.suptitle(taxid+': '+species_name+'\n\n', fontweight='bold', fontsize=26, ha='right')
   colormaps, colnames = ['RdPu', 'GnBu', 'BuPu', 'OrRd'], ['Kraken reads assigned', 'QUAST genome fraction (%)', 'Proportion kraken reads mapped with QUAST', 'Proportion kraken reads mapped with Bowtie2']
   plot_names = ['Kraken reads\nassigned', 'QUAST genome\nfraction(%)', 'Kraken reads\nmapped by\nQUAST (%)', 'Kraken reads\nmapped by\nBowtie2 (%)']
@@ -255,8 +255,8 @@ def multiple_taxa_in_one_sample(save_name, project_folder, taxid, sample, top_ta
   
   plot_order = list(cc_out.index.values)
   l = len(plot_order)
-  fig = plt.figure(figsize=(20,l))
   l += 3
+  fig = plt.figure(figsize=(20,l))
   fig.suptitle(sample, fontweight='bold', fontsize=26, ha='right')
   colormaps, colnames = ['RdPu', 'GnBu', 'BuPu', 'OrRd'], ['Kraken reads assigned', 'QUAST genome fraction (%)', 'Proportion kraken reads mapped with QUAST', 'Proportion kraken reads mapped with Bowtie2']
   plot_names = ['Kraken reads\nassigned', 'QUAST genome\nfraction(%)', 'Kraken reads\nmapped by\nQUAST (%)', 'Kraken reads\nmapped by\nBowtie2 (%)']
