@@ -141,7 +141,12 @@ def single_taxon_across_samples(taxid, save_name, project_folder, samples='All')
   cc_out = pd.read_csv(project_folder+'coverage_checker_output.tsv', index_col=1, header=0, sep='\t')
   cc_out = cc_out.loc[int(taxid), :]
   species_name = cc_out['Species name'].values[0].replace('_', ' ')
-  cc_out = cc_out.loc[:, ['Sample', 'Reference genome length (bp)', 'Kraken reads assigned', 'QUAST genome fraction (%)', 'Proportion kraken reads mapped with QUAST','Proportion kraken reads mapped with Bowtie2']].set_index('Sample')
+  #cc_out = cc_out.loc[:, ['Sample', 'Reference genome length (bp)', 'Kraken reads assigned', 'QUAST genome fraction (%)', 'Proportion kraken reads mapped with QUAST','Proportion kraken reads mapped with Bowtie2']].set_index('Sample')
+  try: cc_out = cc_out.loc[:, ['Sample', 'Reference genome length (bp)', 'Kraken reads assigned', 'QUAST genome fraction (%)', 'Proportion kraken reads mapped with QUAST','Proportion kraken reads mapped with Bowtie2']].set_index('Sample')
+  except: cc_out = cc_out.loc[:, ['Sample', 'Reference genome length (bp)', 'Kraken reads assigned', 'QUAST genome fraction (%)', 'Proportion kraken reads mapped with QUAST']].set_index('Sample')
+  try: cc_out['Proportion kraken reads mapped with Bowtie2'] = cc_out['Proportion kraken reads mapped with Bowtie2']*100
+  except: do_nothing = True
+  cc_out['Proportion kraken reads mapped with QUAST'] = cc_out['Proportion kraken reads mapped with QUAST']*100
 
   #get plotting order
   if samples == 'All':
@@ -151,12 +156,13 @@ def single_taxon_across_samples(taxid, save_name, project_folder, samples='All')
   
   l = len(sample_order)
   fig = plt.figure(figsize=(20,l))
-  l += 1
+  l += 3
   fig.suptitle(taxid+': '+species_name+'\n\n', fontweight='bold', fontsize=26, ha='right')
   colormaps, colnames = ['RdPu', 'GnBu', 'BuPu', 'OrRd'], ['Kraken reads assigned', 'QUAST genome fraction (%)', 'Proportion kraken reads mapped with QUAST', 'Proportion kraken reads mapped with Bowtie2']
-  plot_names = ['Kraken reads\nassigned', 'QUAST genome\nfraction(%)', 'QUAST proportion\nmapped', 'Bowtie2 proportion\nmapped']
+  plot_names = ['Kraken reads\nassigned', 'QUAST genome\nfraction(%)', 'Kraken reads\nmapped by\nQUAST (%)', 'Kraken reads\nmapped by\nBowtie2 (%)']
   mapping, mins, maxs = [], [], []
   for c in range(len(colormaps)):
+    if colnames[c] not in cc_out.columns: continue
     all_c = list(cc_out[colnames[c]].values)
     all_c = [ac for ac in all_c if not np.isnan(ac)]
     min_c, max_c = min(all_c), max(all_c)
@@ -172,10 +178,13 @@ def single_taxon_across_samples(taxid, save_name, project_folder, samples='All')
     ax_kraken = plt.subplot2grid((l,25),(s+1,15), colspan=2)
     ax_quast_gf = plt.subplot2grid((l,25),(s+1,17), colspan=2)
     ax_quast_prop = plt.subplot2grid((l,25),(s+1,19), colspan=2)
-    ax_bowtie2_prop = plt.subplot2grid((l,25),(s+1,21), colspan=2)
-    axes = [ax_kraken, ax_quast_gf, ax_quast_prop, ax_bowtie2_prop]
+    if 'Proportion kraken reads mapped with Bowtie2' in cc_out.columns:
+      ax_bowtie2_prop = plt.subplot2grid((l,25),(s+1,21), colspan=2)
+      axes = [ax_kraken, ax_quast_gf, ax_quast_prop, ax_bowtie2_prop]
+    else:
+      axes = [ax_kraken, ax_quast_gf, ax_quast_prop]
     rounding, div = [None, 3, 3, 3], [None, None, None, None]
-    for a in range(4):
+    for a in range(len(axes)):
       plot_square(axes[a], mapping[a], cc_out.loc[sample_order[s], colnames[a]], mins[a], maxs[a], rnd=rounding[a], div=div[a])
       if s == 0:
         axes[a].set_title(plot_names[a], fontweight='bold', rotation=90)
@@ -196,6 +205,28 @@ def single_taxon_across_samples(taxid, save_name, project_folder, samples='All')
       plt.sca(ax_genome)
       t = plt.xticks(xticks, [round(gen_means[int(x)]/1000000, 1) for x in xticks])
       xl = plt.xlabel('Genome size (mbp)')
+  
+  ad = 3
+  ax_genome_leg = plt.subplot2grid((l,25),((s)+ad,2),colspan=6)
+  ax_kraken_leg = plt.subplot2grid((l,100),((s)+ad,61), colspan=6)
+  ax_quast_gf_leg = plt.subplot2grid((l,100),((s)+ad,69), colspan=6)
+  ax_quast_prop_leg = plt.subplot2grid((l,100),((s)+ad,77), colspan=6)
+  if 'Proportion kraken reads mapped with Bowtie2' in cc_out.columns:
+    ax_bowtie2_prop_leg = plt.subplot2grid((l,100),((s)+ad,85), colspan=6)
+    axes = [ax_genome_leg, ax_kraken_leg, ax_quast_gf_leg, ax_quast_prop_leg, ax_bowtie2_prop_leg]
+  else:
+    axes = [ax_genome_leg, ax_kraken_leg, ax_quast_gf_leg, ax_quast_prop_leg]
+  mapping = [mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin=0, vmax=1), cmap='viridis')]+mapping
+  colormaps = ['viridis']+colormaps
+  mins, maxs = [0]+mins, [1]+maxs
+  labels = ['', 'Reads', 'Genome\nfraction (%)', 'Reads\nmapped (%)', 'Reads\nmapped (%)']
+  for a in range(len(axes)):
+    cb = mpl.colorbar.ColorbarBase(axes[a], cmap=colormaps[a], norm=mpl.colors.Normalize(vmin=mins[a], vmax=maxs[a]), orientation='horizontal')
+    if a == 0:
+      plt.sca(axes[a])
+      plt.xticks([0.1, 0.9], ['Less coverage', 'More coverage'])
+    else:
+      axes[a].set_xlabel(labels[a])
         
   plt.subplots_adjust(hspace=0.7)
   plt.savefig(save_name+' '+species_name+'.png', bbox_inches='tight', dpi=dpi)
@@ -216,17 +247,22 @@ def multiple_taxa_in_one_sample(save_name, project_folder, taxid, sample, top_ta
       elif sort_by == 'bowtie2': cc_out = cc_out.sort_values(by=['Proportion kraken reads mapped with Bowtie2'], ascending=False)
     save_name += '_'+sort_by+'_top'+str(top_taxa)
     cc_out = cc_out.head(top_taxa)
-  cc_out = cc_out.loc[:, ['Species name', 'Reference genome length (bp)', 'Kraken reads assigned', 'QUAST genome fraction (%)', 'Proportion kraken reads mapped with QUAST','Proportion kraken reads mapped with Bowtie2']]
+  try: cc_out = cc_out.loc[:, ['Species name', 'Reference genome length (bp)', 'Kraken reads assigned', 'QUAST genome fraction (%)', 'Proportion kraken reads mapped with QUAST','Proportion kraken reads mapped with Bowtie2']]
+  except: cc_out = cc_out.loc[:, ['Species name', 'Reference genome length (bp)', 'Kraken reads assigned', 'QUAST genome fraction (%)', 'Proportion kraken reads mapped with QUAST']]
+  try: cc_out['Proportion kraken reads mapped with Bowtie2'] = cc_out['Proportion kraken reads mapped with Bowtie2']*100
+  except: do_nothing = True
+  cc_out['Proportion kraken reads mapped with QUAST'] = cc_out['Proportion kraken reads mapped with QUAST']*100
   
   plot_order = list(cc_out.index.values)
   l = len(plot_order)
   fig = plt.figure(figsize=(20,l))
-  l += 1
+  l += 3
   fig.suptitle(sample, fontweight='bold', fontsize=26, ha='right')
   colormaps, colnames = ['RdPu', 'GnBu', 'BuPu', 'OrRd'], ['Kraken reads assigned', 'QUAST genome fraction (%)', 'Proportion kraken reads mapped with QUAST', 'Proportion kraken reads mapped with Bowtie2']
-  plot_names = ['Kraken reads\nassigned', 'QUAST genome\nfraction(%)', 'QUAST proportion\nmapped', 'Bowtie2 proportion\nmapped']
+  plot_names = ['Kraken reads\nassigned', 'QUAST genome\nfraction(%)', 'Kraken reads\nmapped by\nQUAST (%)', 'Kraken reads\nmapped by\nBowtie2 (%)']
   mapping, mins, maxs = [], [], []
   for c in range(len(colormaps)):
+    if colnames[c] not in cc_out.columns: continue
     all_c = list(cc_out[colnames[c]].values)
     all_c = [ac for ac in all_c if not np.isnan(ac)]
     min_c, max_c = min(all_c), max(all_c)
@@ -242,10 +278,13 @@ def multiple_taxa_in_one_sample(save_name, project_folder, taxid, sample, top_ta
     ax_kraken = plt.subplot2grid((l,25),(s+1,15), colspan=2)
     ax_quast_gf = plt.subplot2grid((l,25),(s+1,17), colspan=2)
     ax_quast_prop = plt.subplot2grid((l,25),(s+1,19), colspan=2)
-    ax_bowtie2_prop = plt.subplot2grid((l,25),(s+1,21), colspan=2)
-    axes = [ax_kraken, ax_quast_gf, ax_quast_prop, ax_bowtie2_prop]
+    if 'Proportion kraken reads mapped with Bowtie2' in cc_out.columns:
+      ax_bowtie2_prop = plt.subplot2grid((l,25),(s+1,21), colspan=2)
+      axes = [ax_kraken, ax_quast_gf, ax_quast_prop, ax_bowtie2_prop]
+    else:
+      axes = [ax_kraken, ax_quast_gf, ax_quast_prop]
     rounding, div = [None, 3, 3, 3], [None, None, None, None]
-    for a in range(4):
+    for a in range(len(axes)):
       plot_square(axes[a], mapping[a], cc_out.loc[plot_order[s], colnames[a]], mins[a], maxs[a], rnd=rounding[a], div=div[a])
       if s == 0:
         axes[a].set_title(plot_names[a], fontweight='bold', rotation=90)
@@ -263,8 +302,30 @@ def multiple_taxa_in_one_sample(save_name, project_folder, taxid, sample, top_ta
       xl = plt.xlabel('Identity (%)')
       plt.sca(ax_genome)
       xl = plt.xlabel('Genome size (mbp)')
+  
+  ad = 3
+  ax_genome_leg = plt.subplot2grid((l,25),((s)+ad,2),colspan=6)
+  ax_kraken_leg = plt.subplot2grid((l,100),((s)+ad,61), colspan=6)
+  ax_quast_gf_leg = plt.subplot2grid((l,100),((s)+ad,69), colspan=6)
+  ax_quast_prop_leg = plt.subplot2grid((l,100),((s)+ad,77), colspan=6)
+  if 'Proportion kraken reads mapped with Bowtie2' in cc_out.columns:
+    ax_bowtie2_prop_leg = plt.subplot2grid((l,100),((s)+ad,85), colspan=6)
+    axes = [ax_genome_leg, ax_kraken_leg, ax_quast_gf_leg, ax_quast_prop_leg, ax_bowtie2_prop_leg]
+  else:
+    axes = [ax_genome_leg, ax_kraken_leg, ax_quast_gf_leg, ax_quast_prop_leg]
+  mapping = [mpl.cm.ScalarMappable(norm=mpl.colors.Normalize(vmin=0, vmax=1), cmap='viridis')]+mapping
+  colormaps = ['viridis']+colormaps
+  mins, maxs = [0]+mins, [1]+maxs
+  labels = ['', 'Reads', 'Genome\nfraction (%)', 'Reads\nmapped (%)', 'Reads\nmapped (%)']
+  for a in range(len(axes)):
+    cb = mpl.colorbar.ColorbarBase(axes[a], cmap=colormaps[a], norm=mpl.colors.Normalize(vmin=mins[a], vmax=maxs[a]), orientation='horizontal')
+    if a == 0:
+      plt.sca(axes[a])
+      plt.xticks([0.1, 0.9], ['Less coverage', 'More coverage'])
+    else:
+      axes[a].set_xlabel(labels[a])
 
-  plt.subplots_adjust(hspace=0.7)
+  plt.subplots_adjust(hspace=1.2)
   plt.savefig(save_name+'.png', bbox_inches='tight', dpi=dpi)
   return
 
