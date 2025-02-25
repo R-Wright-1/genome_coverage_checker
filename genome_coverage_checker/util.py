@@ -24,7 +24,8 @@ def run_initial_checks(wd, n_proc, fastq_dir, kraken_kreport_dir, kraken_outraw_
   for folder in [fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder]:
     if not os.path.exists(folder):
       if folder == output_dir:
-        print(output_dir+" doesn't already exist. Making it now.")
+        sys.stdout.write(output_dir+" doesn't already exist. Making it now.")
+        sys.stdout.flush()
         os.system('mkdir '+output_dir)
       else:
         sys.exit("This path doesn't exist: "+folder)
@@ -64,8 +65,7 @@ def run_initial_checks(wd, n_proc, fastq_dir, kraken_kreport_dir, kraken_outraw_
   #check whether species list exists, if it does, get the taxids
   if species != None:
     if not os.path.exists(species):
-      print("This file doesn't exist: "+species)
-      sys.exit()
+      sys.exit("This file doesn't exist: "+species+" but you've run with the species list option. Please either re-run without or provide the correct file path.")
     sp_list = []
     for row in open(species, 'r'):
       sp_list.append(row.replace('\n', '').replace('\t', '').split(';s__')[-1])
@@ -222,9 +222,10 @@ def extract_reads(taxid, output_dir, samples, fastq_dir, kraken_kreport_dir, kra
   os.system('python '+dirname(abspath(__file__))+'/run_commands_multiprocessing.py --commands '+output_dir+'run_extract_reads_commands.txt --processors '+str(n_proc))
   return
 
-def combine_convert_files(taxid, output_dir, samples, group_samples, n_proc, skip_duplicate_check=False):
+def combine_convert_files(taxid, output_dir, samples, group_samples, n_proc, skip_duplicate_check=False, grouped_samples_only=False):
   combine_commands = []
   all_fastq = []
+  groups_only = []
   for tax in taxid:
     for group in group_samples:
       samples_in_group = group_samples[group]
@@ -238,6 +239,7 @@ def combine_convert_files(taxid, output_dir, samples, group_samples, n_proc, ski
           in_group = True
       if in_group:
         all_fastq.append(output_dir+'reads_mapped/'+taxid_group)
+        groups_only.append(output_dir+'reads_mapped/'+taxid_group)
   write_file(output_dir+'run_combine_files_commands.txt', combine_commands)
   os.system('python '+dirname(abspath(__file__))+'/run_commands_multiprocessing.py --commands '+output_dir+'run_combine_files_commands.txt --processors '+str(n_proc))
 
@@ -249,6 +251,10 @@ def combine_convert_files(taxid, output_dir, samples, group_samples, n_proc, ski
 
   convert_commands = []
   all_files = []
+  if grouped_samples_only: 
+    sys.stdout.write("You set --grouped_samples_only so instead of %s total files, genome coverage checker will be run with the %s combined files only." % (len(all_fastq), len(groups_only)))
+    sys.stdout.flush()
+    all_fastq = groups_only
   for fq in all_fastq:
     command =  'python '+dirname(abspath(__file__))+'/convert_fastq_to_fasta.py --fastq '+fq+' --fasta '+fq.replace('.fq', '.fa')
     convert_commands.append(command)

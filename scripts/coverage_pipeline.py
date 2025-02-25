@@ -56,6 +56,8 @@ parser.add_argument('--skip_cleanup', dest='skip_cleanup', default=False, action
                     help="If you want to skip the cleanup. This will keep the intermediate files containing some of the commands run, e.g. for making bowtie2 databases. They may be helpful if you're trying to troubleshoot issues.")
 parser.add_argument('--skip_duplicate_check', dest='skip_duplicate_check', default=False, action='store_true',
                     help="If you want to skip the check for duplicates within the fastq files. Note that this step can take a while if you have a lot of samples - it was mainly added because you'll get some weird QUAST/Bowtie2 results if you have duplicate reads in your files. This can happen if you rerun coverage checker using the same output folder.")
+parser.add_argument('--grouped_samples_only', dest='grouped_samples_only', default=False, action='store_true',
+                    help="If you only want to run coverage checker with the grouped samples (i.e. by metadata variable or overall). The default is to run coverage checker individually on each sample, but if you only want the overall results, it will save on computation time to run coverage checker with this option.")
 
 
 #Read in the command line arguments
@@ -68,7 +70,7 @@ if bowtie2_db_dir == None:
 read_lim, read_mean, assembly_folder = args.read_lim, args.read_mean, args.assembly_folder
 if assembly_folder == None:
   assembly_folder = output_dir
-sample_metadata, species, project_name, rerun, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup, skip_duplicate_check, bowtie2_setting = args.sample_metadata, args.species, args.project_name, args.rerun, args.all_domains, args.representative_only, args.skip_bowtie2, args.skip_coverage, args.skip_cleanup, args.skip_duplicate_check, args.bowtie2_setting
+sample_metadata, species, project_name, rerun, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup, skip_duplicate_check, bowtie2_setting, grouped_samples_only = args.sample_metadata, args.species, args.project_name, args.rerun, args.all_domains, args.representative_only, args.skip_bowtie2, args.skip_coverage, args.skip_cleanup, args.skip_duplicate_check, args.bowtie2_setting, args.grouped_samples_only
 wd = os.getcwd()
 if read_lim == None: read_lim = 0
 else: read_lim = int(read_lim)
@@ -80,7 +82,8 @@ if rerun:
   cp = '0'
 elif os.path.exists(output_dir+'/checkpoint.txt'):
   cp = get_checkpoint(output_dir)
-  print("Got information from previous run: already at "+cp)
+  sys.stdout.write("Got information from previous run: already at "+cp+"\n\n")
+  sys.stdout.flush()
 else:
   cp = '0'
 
@@ -89,127 +92,164 @@ if cp != '0':
   if os.path.exists(output_dir+'/pickle_intermediates/args.pickle'):
     with open(output_dir+'/pickle_intermediates/args.pickle', 'rb') as f:
       all_args = pickle.load(f)
-    wd, n_proc, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, md, samples, taxid_name, genome_dir, bowtie2_db_dir, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup, skip_duplicate_check, bowtie2_setting = all_args
+    wd, n_proc, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, md, samples, taxid_name, genome_dir, bowtie2_db_dir, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup, skip_duplicate_check, bowtie2_setting, grouped_samples_only = all_args
     
 # 1. Run the initial checks
 if cp == '0':
-  print("Running initial checks")
+  sys.stdout.write("Running initial checks"+"\n")
+  sys.stdout.flush()
   wd, n_proc, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, md, samples, taxid_name, genome_dir, bowtie2_db_dir = run_initial_checks(wd, n_proc, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, genome_dir, bowtie2_db_dir) #run all of the initial checks to ensure that all of the folders and files exist before starting to try and run anything
-  all_args = [wd, n_proc, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, md, samples, taxid_name, genome_dir, bowtie2_db_dir, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup, skip_duplicate_check, bowtie2_setting]
+  all_args = [wd, n_proc, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, assembly_folder, read_lim, read_mean, sample_metadata, species, project_name, rerun, md, samples, taxid_name, genome_dir, bowtie2_db_dir, all_domains, representative_only, skip_bowtie2, skip_coverage, skip_cleanup, skip_duplicate_check, bowtie2_setting, grouped_samples_only]
   save_pickle(all_args, output_dir+'/pickle_intermediates/args.pickle')
   cp = update_checkpoint(output_dir, "1_initial_checks_run")
-  print("Completed check-point 1 initial checks")
+  sys.stdout.write("Completed check-point 1 initial checks"+"\n\n")
+  sys.stdout.flush()
 else:
-  print("Skipping initial checks because check-point wasn't 0")
+  sys.stdout.write("Skipping initial checks because check-point wasn't 0"+"\n\n")
+  sys.stdout.flush()
   
 
 # 2. Read in all kreports and combine them to get the genomes that we'll need
 if cp == "1_initial_checks_run":
-  print("Reading in kreports and combining them")
+  sys.stdout.write("Reading in kreports and combining them"+"\n")
+  sys.stdout.flush()
   group_samples, taxid, kreports = get_kreports(samples, kraken_kreport_dir, output_dir, md, read_lim, read_mean, project_name, taxid_name)
   names, objects = ['group_samples', 'taxid', 'kreports'], [group_samples, taxid, kreports]
   for n in range(len(names)):
     save_pickle(objects[n], output_dir+'/pickle_intermediates/'+names[n]+'.pickle')
   cp = update_checkpoint(output_dir, "2_combined_kreports")
-  print("Completed check-point 2 combined kreports")
+  sys.stdout.write("Completed check-point 2 combined kreports"+"\n\n")
+  sys.stdout.flush()
 else:
-  print("Skipping 2_combined_kreports because check-point wasn't 1_initial_checks_run")
+  print("Skipping 2_combined_kreports because check-point wasn't 1_initial_checks_run"+"\n\n")
   names, objects = ['group_samples', 'taxid', 'kreports'], []
   for n in range(len(names)):
     with open(output_dir+'/pickle_intermediates/'+names[n]+'.pickle', 'rb') as f:
       objects.append(pickle.load(f))
   group_samples, taxid, kreports = objects
-  
+
+sys.stdout.write("You are running Genome Coverage Checker with %s taxa and %s samples. This gives %s taxon-sample combinations to be run.\n" % (len(taxid), len(group_samples+samples), len(taxid)*len(group_samples+samples)))
+sys.stdout.write("If you think this will take a long time, consider stopping and re-running with the --grouped_samples_only option.\n")
+sys.stdout.write("Using the --grouped_samples_only option would give %s samples and %s taxon-sample combinations.\n\n" %s (len(group_samples), len(group_samples)*len(taxid))
+sys.stdout.flush()  
 
 # 3. Download all genomes
 if cp == "2_combined_kreports":
-  print("Downloading all genomes")
+  sys.stdout.write("Downloading all genomes"+"\n")
+  sys.stdout.flush()  
   taxid = download_genomes(taxid, assembly_folder, output_dir, all_domains, representative_only, n_proc, genome_dir)
   save_pickle(taxid, output_dir+'/pickle_intermediates/taxid.pickle')
   cp = update_checkpoint(output_dir, "3_downloaded_genomes")
-  print("Completed check-point 3 downloaded genomes")
+  sys.stdout.write("Completed check-point 3 downloaded genomes"+"\n\n")
+  sys.stdout.flush()  
 else:
-  print("Skipping 3_downloaded_genomes because check-point wasn't 2_combined_kreports")
+  sys.stdout.write("Skipping 3_downloaded_genomes because check-point wasn't 2_combined_kreports"+"\n\n")
+  sys.stdout.flush()  
   with open(output_dir+'/pickle_intermediates/taxid.pickle', 'rb') as f:
     taxid = pickle.load(f)
 
 # 4. Extract the reads for each taxonomy ID
 if cp == "3_downloaded_genomes":
-  print("Extracting reads for all taxonomy ID's")
+  sys.stdout.write("Extracting reads for all taxonomy ID's"+"\n")
+  sys.stdout.flush()
   extract_reads(taxid, output_dir, samples, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, n_proc)
   cp = update_checkpoint(output_dir, "4_extracted_reads")
-  print("Completed check-point 4 extracted all reads")
+  sys.stdout.write("Completed check-point 4 extracted all reads"+"\n\n")
+  sys.stdout.flush()
 else:
-  print("Skipping 4_extracted_reads because check-point wasn't 3_downloaded_genomes")
+  sys.stdout.write("Skipping 4_extracted_reads because check-point wasn't 3_downloaded_genomes"+"\n\n")
+  sys.stdout.flush()
 
 # 5. Combine the files for each taxonomy ID (across multiple samples for the sample groupings)
 if cp == "4_extracted_reads":
-  print("Combining files for each taxonomy ID")
-  all_files = combine_convert_files(taxid, output_dir, samples, group_samples, n_proc, skip_duplicate_check)
+  sys.stdout.write("Combining files for each taxonomy ID"+"\n")
+  sys.stdout.flush()
+  all_files = combine_convert_files(taxid, output_dir, samples, group_samples, n_proc, skip_duplicate_check, grouped_samples_only)
   save_pickle(all_files, output_dir+'/pickle_intermediates/all_files.pickle')
   cp = update_checkpoint(output_dir, "5_combined_files")
-  print("Completed check-point 5 combined files")
+  sys.stdout.write("Completed check-point 5 combined files"+"\n\n")
+  sys.stdout.flush()
 else:
-  print("Skipping 5_combined_files because check-point wasn't 4_extracted_reads")
+  sys.stdout.write("Skipping 5_combined_files because check-point wasn't 4_extracted_reads"+"\n\n")
+  sys.stdout.flush()
   with open(output_dir+'/pickle_intermediates/all_files.pickle', 'rb') as f:
     all_files = pickle.load(f)
 
 # 6. Run QUAST
 if cp == "5_combined_files":
-  print("Running QUAST")
+  sys.stdout.write("Running QUAST"+"\n")
+  sys.stdout.flush()
   run_quast(all_files, taxid, output_dir, n_proc, genome_dir)
   cp = update_checkpoint(output_dir, "6_quast_run")
-  print("Completed check-point 6 QUAST run")
+  sys.stdout.write("Completed check-point 6 QUAST run"+"\n\n")
+  sys.stdout.flush()
 else:
-  print("Skipping 6_quast_run because check-point wasn't 5_combined_files")
+  sys.stdout.write("Skipping 6_quast_run because check-point wasn't 5_combined_files"+"\n\n")
+  sys.stdout.flush()
 
 # 7. Make bowtie2 databases & run bowtie2 for all taxonomy ID's
 if cp == "6_quast_run":
   if skip_bowtie2:
     cp = update_checkpoint(output_dir, "7_bowtie2_run")
-    print("Skipped check-point 7 Bowtie2 run")
+    sys.stdout.write("Skipped check-point 7 Bowtie2 run"+"\n\n")
+    sys.stdout.flush()
   else:
-    print("Running Bowtie2")
+    sys.stdout.write("Running Bowtie2"+"\n")
+    sys.stdout.flush()
     make_bowtie2_databases(taxid, output_dir, n_proc, bowtie2_db_dir, genome_dir)
     run_bowtie2(all_files, taxid, output_dir, n_proc, bowtie2_setting, bowtie2_db_dir)
     cp = update_checkpoint(output_dir, "7_bowtie2_run")
-    print("Completed check-point 7 Bowtie2 run")
+    sys.stdout.write("Completed check-point 7 Bowtie2 run"+"\n\n")
+    sys.stdout.flush()
 else:
-  print("Skipping 7_bowtie2_run because check-point wasn't 6_quast_run")
+  sys.stdout.write("Skipping 7_bowtie2_run because check-point wasn't 6_quast_run"+"\n\n")
+  sys.stdout.flush()
 
 # 8. Get the coverage and mapping of reads across the genomes
 if cp == "7_bowtie2_run":
   if skip_coverage:
     cp = update_checkpoint(output_dir, "8_got_coverage")
-    print("Skipped check-point 8 getting coverage across genomes")
+    sys.stdout.write("Skipped check-point 8 getting coverage across genomes"+"\n\n")
+    sys.stdout.flush()
   else:
+    sys.stdout.write("Getting coverage across genomes"+"\n")
+    sys.stdout.flush()
     get_coverage_across_genomes(all_files, taxid, output_dir, n_proc)
     cp = update_checkpoint(output_dir, "8_got_coverage")
-    print("Completed check-point 8 got coverage across genomes")
+    sys.stdout.write("Completed check-point 8 got coverage across genomes"+"\n\n")
+    sys.stdout.flush()
 else:
-  print("Skipping 8_got_coverage because check-point wasn't 7_bowtie2_run")
+  sys.stdout.write("Skipping 8_got_coverage because check-point wasn't 7_bowtie2_run"+"\n\n")
+  sys.stdout.flush()
   
 # 9. Collate the output
 if cp == "8_got_coverage":
-  print("Collating all output")
+  sys.stdout.write("Collating all output"+"\n")
+  sys.stdout.flush()
   collate_output(all_files, taxid, output_dir, kreports, samples, group_samples, skip_bowtie2, skip_coverage)
   cp = update_checkpoint(output_dir, "9_collate_output")
-  print("Completed check-point 9 collating output")
+  sys.stdout.write("Completed check-point 9 collating output"+"\n\n")
+  sys.stdout.flush()
 else:
-  print("Skipping 9_collate_output because check-point wasn't 8_got_coverage")
+  sys.stdout.write("Skipping 9_collate_output because check-point wasn't 8_got_coverage"+"\n\n")
+  sys.stdout.flush()
 
 # 10. Clean up all of the intermediate files
 if cp == "9_collate_output":
   if skip_cleanup:
     cp = update_checkpoint(output_dir, "10_cleanup")
-    print("Skipping check-point 10 cleanup of intermediate files")
+    sys.stdout.write("Skipping check-point 10 cleanup of intermediate files"+"\n\n")
+    sys.stdout.flush()
   else:
-    print("Cleaning up directory")
+    print("Cleaning up directory"+"\n")
     clean_up(output_dir)
     cp = update_checkpoint(output_dir, "10_cleanup")
-    print("Completed check-point 10 cleanup of intermediate files")
+    sys.stdout.write("Completed check-point 10 cleanup of intermediate files"+"\n\n")
+    sys.stdout.flush()
 else:
-  print("Skipping 10_cleanup because check-point wasn't 9_collate_output")
-  
-print("Finished running genome coverage checker pipeline.")
-print("Running time: --- %s seconds ---" % round((time.time() - start_time), 2))
+  sys.stdout.write("Skipping 10_cleanup because check-point wasn't 9_collate_output"+"\n\n")
+  sys.stdout.flush()
+
+sys.stdout.write("Finished running genome coverage checker pipeline."+"\n")
+sys.stdout.write("Running time: --- %s seconds ---"+"\n\n" % round((time.time() - start_time), 2))
+sys.stdout.flush()
