@@ -128,10 +128,13 @@ else:
       objects.append(pickle.load(f))
   group_samples, taxid, kreports = objects
 
-sys.stdout.write("You are running Genome Coverage Checker with %s taxa and %s samples. This gives %s taxon-sample combinations to be run.\n" % (len(taxid), len(group_samples+samples), len(taxid)*len(group_samples+samples)))
+sys.stdout.write("You are running Genome Coverage Checker with "+str(len(taxid))+" taxa and "+str(len(group_samples)+len(samples))+" samples. This gives "+str(len(taxid)*(len(group_samples)+len(samples)))+" taxon-sample combinations to be run.\n")
 sys.stdout.write("If you think this will take a long time, consider stopping and re-running with the --grouped_samples_only option, or with a higher --read_lim option set.\n")
-sys.stdout.write("Using the --grouped_samples_only option would give %s samples and %s taxon-sample combinations.\n\n" %s (len(group_samples), len(group_samples)*len(taxid)))
-sys.stdout.flush()  
+if not grouped_samples_only:
+  sys.stdout.write("Using the --grouped_samples_only option would give "+str(len(group_samples))+" samples and "+str(len(group_samples)*len(taxid))+" taxon-sample combinations.\n\n")
+else:
+  sys.stdout.write("\n")
+sys.stdout.flush() 
 
 # 3. Download all genomes
 if cp == "2_combined_kreports":
