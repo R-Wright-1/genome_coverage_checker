@@ -315,11 +315,7 @@ def run_bowtie2(all_files, taxid, output_dir, n_proc, bowtie2_setting, bowtie2_d
     out_name = output_dir+'/bowtie2_mapped/'+file.split('/')[-1]
     out_names.append(out_name)
     command_bt2 = 'bowtie2 --quiet --threads 1 --'+bowtie2_setting+' -x '+bowtie2_file+ ' -U '+file+'.fq --no-unal -S '+out_name+'.sam >> '+output_dir+'/bowtie2_terminal_output.txt'
-    #command_view = 'samtools view -b -F 4 '+out_name+'.sam > '+out_name+'.bam'
-    #command_fasta = 'samtools fasta '+out_name+'.bam -0 '+out_name+'.fasta --verbosity 0'
     bowtie2_commands.append(command_bt2)
-    #view_commands.append(command_view)
-    #fasta_commands.append(command_fasta)
   write_file(output_dir+'run_bowtie2_commands.txt', bowtie2_commands)
   os.system('python '+dirname(abspath(__file__))+'/run_commands_multiprocessing.py --commands '+output_dir+'run_bowtie2_commands.txt --processors '+str(n_proc))
   bowtie2_error = []
@@ -342,7 +338,7 @@ def run_bowtie2(all_files, taxid, output_dir, n_proc, bowtie2_setting, bowtie2_d
   os.system('python '+dirname(abspath(__file__))+'/run_commands_multiprocessing.py --commands '+output_dir+'run_fasta_commands.txt --processors '+str(n_proc))
   fasta_error = []
   for out_name in out_names:
-    if not os.path.exists:
+    if not os.path.exists(out_name+'.fasta'):
       fasta_error.append(out_name)
   with open(output_dir+'bowtie2_errors.txt', 'w') as f:
     for fn in bowtie2_error:
@@ -351,6 +347,38 @@ def run_bowtie2(all_files, taxid, output_dir, n_proc, bowtie2_setting, bowtie2_d
       w = f.write(fn+' View error\n')
     for fn in fasta_error:
       w = f.write(fn+' Fasta error\n')
+  return
+
+def run_bowtie2_paf(all_files, taxid, output_dir, n_proc, bowtie2_setting, bowtie2_db_dir):
+  bowtie2_commands, paf_commands = [], []
+  out_names = []
+  for file in all_files:
+    tid = file.split('_')[-1]
+    bowtie2_file = bowtie2_db_dir+tid+'_'+taxid[tid]
+    out_name = output_dir+'/bowtie2_mapped/'+file.split('/')[-1]
+    out_names.append(out_name)
+    command_bt2 = 'bowtie2 --quiet --threads 1 --'+bowtie2_setting+' -x '+bowtie2_file+ ' -U '+file+'.fq --no-unal -S '+out_name+'.sam >> '+output_dir+'/bowtie2_terminal_output.txt'
+    bowtie2_commands.append(command_bt2)
+  write_file(output_dir+'run_bowtie2_commands.txt', bowtie2_commands)
+  os.system('python '+dirname(abspath(__file__))+'/run_commands_multiprocessing.py --commands '+output_dir+'run_bowtie2_commands.txt --processors '+str(n_proc))
+  bowtie2_error = []
+  for out_name in out_names:
+    if os.path.exists(out_name+'.sam'):
+      command_paf = 'paftools.js sam2paf '+out_name+'.sam > '+out_name+'.paf'
+      paf_commands.append(command_paf)
+    else:
+      bowtie2_error.append(out_name)
+  write_file(output_dir+'run_paf_commands.txt', paf_commands)
+  os.system('python '+dirname(abspath(__file__))+'/run_commands_multiprocessing.py --commands '+output_dir+'run_paf_commands.txt --processors '+str(n_proc))
+  paf_error = []
+  for out_name in out_names:
+    if not os.path.exists(out_name+'.paf'):
+      paf_error.append(out_name)
+  with open(output_dir+'bowtie2_errors.txt', 'w') as f:
+    for fn in bowtie2_error:
+      w = f.write(fn+' Bowtie2 error\n')
+    for fn in paf_error:
+      w = f.write(fn+' PAF error\n')
   return
 
 
@@ -398,6 +426,109 @@ def collate_output(all_files, taxid, output_dir, kreports, samples, group_sample
       if os.path.exists(output_dir+'bowtie2_mapped/'+f+'.fasta'):
         for row in open(output_dir+'bowtie2_mapped/'+f+'.fasta', 'r'):
           if row[0] == '>': count += 1
+      bowtie2_out[f] = count
+
+  #get kraken counts for each sample or each group of samples
+  kraken_counts = {}
+  tax_list = [t for t in taxid]
+  for sample in samples:
+    group_samples[sample] = [sample]
+  for group in group_samples:
+    for tax in tax_list:
+      krak_red = kreports.loc[int(tax), group_samples[group]].values
+      kraken_counts[group+'_'+tax] = sum(krak_red)
+
+  #now compile all together
+  first_row = ['Sample', 'taxid', 'Species name', 'Reference genome length (bp)', 'Kraken reads assigned', 'QUAST reads mapped', 'QUAST genome fraction (%)', 'QUAST duplication ratio', 'QUAST aligned length']
+  if not skip_coverage:
+    first_row.append('QUAST identity of mapped reads (%)')
+  if not skip_bowtie2:
+    first_row.append('Bowtie2 reads mapped')
+  all_out = []
+  for group in group_samples:
+    for tax in taxid:
+      if kraken_counts[group+'_'+tax] == 0:
+        this_sample = [group, tax, taxid[tax], '', kraken_counts[group+'_'+tax], '', '', '']
+        if not skip_coverage:
+          this_sample.append('')
+        if not skip_bowtie2:
+          this_sample.append('')
+        all_out.append(this_sample)
+        continue
+      try:
+        quast_sample = quast_out[group+'_'+tax] #ref_len, ref_gc, nreads, quast_gc, genome_frac, dup_ratio, unaligned, aligned_length
+        this_sample = [group, tax, taxid[tax], quast_sample[0], kraken_counts[group+'_'+tax], quast_sample[2]-quast_sample[6], quast_sample[4], quast_sample[5], quast_sample[7]]
+        if not skip_coverage:
+          if not quast_sample[2] == 0:
+            try:
+              for row in open(output_dir+'coverage/'+group+'_'+tax+'.txt', 'r'):
+                if 'genome_identity' in row:
+                  row = row.replace('genome_identity: ', '').replace('\n', '')
+                  if row == '':
+                    this_sample.append('')
+                  else:
+                    iden = row.split(',')
+                    iden = [float(r) for r in iden]
+                    iden = np.mean(iden)
+                    this_sample.append(iden)
+            except:
+              this_sample.append('')
+          else:
+            this_sample.append('')
+      except:
+        this_sample = [group, tax, taxid[tax], '', kraken_counts[group+'_'+tax], '', '', '', '', '']
+      if not skip_bowtie2:
+        try:
+          this_sample.append(bowtie2_out[group+'_'+tax])
+        except:
+          this_sample.append('')
+      all_out.append(this_sample)
+  out_df = pd.DataFrame(all_out, columns=first_row)
+  out_df['QUAST reads mapped'], out_df['Kraken reads assigned'] = pd.to_numeric(out_df['QUAST reads mapped']), pd.to_numeric(out_df['Kraken reads assigned'])
+  out_df['Proportion kraken reads mapped with QUAST'] = out_df['QUAST reads mapped']/out_df['Kraken reads assigned']
+  if not skip_bowtie2:
+    out_df['Bowtie2 reads mapped'] = pd.to_numeric(out_df['Bowtie2 reads mapped'])
+    out_df['Proportion kraken reads mapped with Bowtie2'] = out_df['Bowtie2 reads mapped']/out_df['Kraken reads assigned']
+  if not skip_bowtie2:
+    out_df = out_df.loc[:, ['Sample', 'taxid', 'Species name', 'Reference genome length (bp)', 'Kraken reads assigned', 'QUAST reads mapped', 'QUAST genome fraction (%)', 'QUAST duplication ratio', 'QUAST aligned length', 'QUAST identity of mapped reads (%)', 'Bowtie2 reads mapped', 'Proportion kraken reads mapped with QUAST', 'Proportion kraken reads mapped with Bowtie2']]
+  else:
+    out_df = out_df.loc[:, ['Sample', 'taxid', 'Species name', 'Reference genome length (bp)', 'Kraken reads assigned', 'QUAST reads mapped', 'QUAST genome fraction (%)', 'QUAST duplication ratio', 'QUAST aligned length', 'QUAST identity of mapped reads (%)', 'Proportion kraken reads mapped with QUAST']]
+  out_df.to_csv(output_dir+'coverage_checker_output.tsv', sep='\t', index=False)
+  return
+
+def collate_output_paf(all_files, taxid, output_dir, kreports, samples, group_samples, skip_bowtie2, skip_coverage):
+  all_files = [f.split('/')[-1] for f in all_files]
+  #get quast outputs
+  quast_out = {}
+  for f in all_files:
+    report = output_dir+'QUAST/'+f+'/report.tsv'
+    if os.path.exists(report):
+      report = pd.read_csv(report, index_col=0, header=0, sep='\t', low_memory=False)
+      ref_len, ref_gc = report.loc['Reference length', f], report.loc['Reference GC (%)', f]
+      nreads = float(report.loc['# contigs (>= 0 bp)', f])
+      quast_gc = report.loc['GC (%)', f]
+      try:
+        aligned_length = report.loc['Total aligned length', f]
+      except:
+        aligned_length = ''
+      try:
+        unaligned = float(report.loc['# unaligned contigs', f].split(' ')[0])
+      except:
+        unaligned = nreads
+      try:
+        genome_frac, dup_ratio = report.loc['Genome fraction (%)', f], report.loc['Duplication ratio', f]
+      except:
+        genome_frac, dup_ratio = 0, ''
+      quast_out[f] = [ref_len, ref_gc, nreads, quast_gc, genome_frac, dup_ratio, unaligned, aligned_length]
+
+  #get bowtie2 outputs
+  if not skip_bowtie2:
+    bowtie2_out = {}
+    for f in all_files:
+      count = 0
+      if os.path.exists(output_dir+'bowtie2_mapped/'+f+'.paf'):
+        for row in open(output_dir+'bowtie2_mapped/'+f+'.paf', 'r'):
+          count += 1
       bowtie2_out[f] = count
 
   #get kraken counts for each sample or each group of samples

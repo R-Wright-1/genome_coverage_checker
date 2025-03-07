@@ -197,7 +197,7 @@ if cp == "6_quast_run":
     sys.stdout.write("Running Bowtie2"+"\n")
     sys.stdout.flush()
     make_bowtie2_databases(taxid, output_dir, n_proc, bowtie2_db_dir, genome_dir)
-    run_bowtie2(all_files, taxid, output_dir, n_proc, bowtie2_setting, bowtie2_db_dir)
+    run_bowtie2_paf(all_files, taxid, output_dir, n_proc, bowtie2_setting, bowtie2_db_dir)
     cp = update_checkpoint(output_dir, "7_bowtie2_run")
     sys.stdout.write("Completed check-point 7 Bowtie2 run"+"\n\n")
     sys.stdout.flush()
@@ -226,7 +226,7 @@ else:
 if cp == "8_got_coverage":
   sys.stdout.write("Collating all output"+"\n")
   sys.stdout.flush()
-  collate_output(all_files, taxid, output_dir, kreports, samples, group_samples, skip_bowtie2, skip_coverage)
+  collate_output_paf(all_files, taxid, output_dir, kreports, samples, group_samples, skip_bowtie2, skip_coverage)
   cp = update_checkpoint(output_dir, "9_collate_output")
   sys.stdout.write("Completed check-point 9 collating output"+"\n\n")
   sys.stdout.flush()
