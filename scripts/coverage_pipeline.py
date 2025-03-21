@@ -143,8 +143,8 @@ else:
   group_samples, taxid, kreports = objects
 
 if not grouped_samples_only:
-  sys.stdout.write("You are running Genome Coverage Checker with %s taxa and %s samples. This gives %s taxon-sample combinations to be run.\n" % (len(taxid), len(group_samples)+len(samples), len(taxid)*len(group_samples)+len(samples)))
-  sys.stdout.write("If you think this will take a long time, consider stopping and re-running with the --grouped_samples_only option, or with a higher --read_lim option set.\n")
+  sys.stdout.write("You are running Genome Coverage Checker with %s taxa and %s samples. This gives %s taxon-sample combinations to be run.\n" % (len(taxid), len(group_samples)+len(samples), len(taxid)*(len(group_samples)+len(samples))))
+  sys.stdout.write("If you think this will take a long time, consider stopping and re-running with the --grouped_samples_only option, or with a higher --read_lim or --read_mean option set.\n")
   sys.stdout.write("Using the --grouped_samples_only option would give %s samples and %s taxon-sample combinations.\n\n" % (len(group_samples), len(group_samples)*len(taxid)))
 else:
   sys.stdout.write("You are running Genome Coverage Checker using the --grouped_samples_only option, giving %s taxa and %s samples. This gives %s taxon-sample combinations to be run.\n" % (len(taxid), len(group_samples), len(taxid)*len(group_samples)))
