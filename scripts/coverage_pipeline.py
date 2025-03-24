@@ -90,6 +90,11 @@ if identity_threshold != None:
     float(identity_threshold)
   except:
     sys.exit("identity_threshold must be a number")
+    
+if coverage_program in ['Minimap2', 'Both']:
+  sys.stdout.write("Please note that we have had issues with running Minimap2 where too many threads are used despite the default to be to use 1 thread for each file (so this should be multiplied by the number of threads that you have set.\n")
+  sys.stdout.write("You can stop the run if you are concerned that this may happen or that this could cause you problems.\n")
+  sys.stdout.flush()
 
 #check whether we've already run this and which checkpoint we're at
 if rerun:
