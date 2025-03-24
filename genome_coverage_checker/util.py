@@ -342,7 +342,7 @@ def run_minimap2(all_files, taxid, output_dir, n_proc, genome_dir):
   for file in all_files:
     tid = file.split('_')[-1]
     genome_file = genome_dir+tid+'_'+taxid[tid]+'.fna'
-    command = 'minimap2 '+genome_file+' '+file+'.fq  -o '+output_dir+'/minimap2_mapped/'+file.split('/')[-1]+'.paf'+'&>/dev/null'
+    command = 'minimap2 '+genome_file+' '+file+'.fq  -o '+output_dir+'/minimap2_mapped/'+file.split('/')[-1]+'.paf -t 1'+'&>/dev/null'
     minimap2_commands.append(command)
   write_file(output_dir+'run_minimap2_commands.txt', minimap2_commands)
   os.system('python '+dirname(abspath(__file__))+'/run_commands_multiprocessing.py --commands '+output_dir+'run_minimap2_commands.txt --processors '+str(n_proc))

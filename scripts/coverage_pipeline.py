@@ -56,8 +56,8 @@ parser.add_argument('--skip_duplicate_check', dest='skip_duplicate_check', defau
                     help="If you want to skip the check for duplicates within the fastq files. Note that this step can take a while if you have a lot of samples - it was mainly added because you'll get some weird results if you have duplicate reads in your files. This can happen if you rerun coverage checker using the same output folder.")
 parser.add_argument('--grouped_samples_only', dest='grouped_samples_only', default=False, action='store_true',
                     help="If you only want to run coverage checker with the grouped samples (i.e. by metadata variable or overall). The default is to run coverage checker individually on each sample, but if you only want the overall results, it will save on computation time to run coverage checker with this option.")
-parser.add_argument('--coverage_program', dest='coverage_program', default='Minimap2', choices=['Minimap2', 'Bowtie2', 'Both'],
-                    help="Which of the programs to use for getting coverage across the genome. Default is Minimap2.")
+parser.add_argument('--coverage_program', dest='coverage_program', default='Bowtie2', choices=['Minimap2', 'Bowtie2', 'Both'],
+                    help="Which of the programs to use for getting coverage across the genome. Default is Bowtie2.")
 parser.add_argument('--mapq_threshold', dest='mapq_threshold', default=None, choices=range(0,256),
                     help="The threshold to use to determine coverage within the genomes. Note that this is not used if you have set --skip_coverage.")
 parser.add_argument('--identity_threshold', dest='identity_threshold', default=None, choices=range(0,101),
