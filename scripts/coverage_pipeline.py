@@ -198,43 +198,43 @@ else:
   with open(output_dir+'/pickle_intermediates/all_files.pickle', 'rb') as f:
     all_files = pickle.load(f)
 
-# 6. Run Minimap2
+# 6. Make bowtie2 databases & run bowtie2 for all taxonomy ID's
 if cp == "5_combined_files":
-  if coverage_program in ['Minimap2', 'Both']:
-    sys.stdout.write("Running Minimap2\n")
-    sys.stdout.flush()
-    run_minimap2(all_files, taxid, output_dir, n_proc, genome_dir)
-    cp = update_checkpoint(output_dir, "6_minimap2_run")
-    sys.stdout.write("Completed check-point 6 Minimap2 run\n\n")
-    sys.stdout.flush()
-  else:
-    sys.stdout.write("Skipping 6_minimap2_run because Minimap2 wasn't in coverage_program")
-    sys.stdout.flush()
-    cp = update_checkpoint(output_dir, "6_minimap2_run")
-else:
-  sys.stdout.write("Skipping 6_minimap2_run because check-point wasn't 5_combined_files\n\n")
-  sys.stdout.flush()
-
-# 7. Make bowtie2 databases & run bowtie2 for all taxonomy ID's
-if cp == "6_minimap2_run":
   if coverage_program in ['Bowtie2', 'Both']:
     sys.stdout.write("Running Bowtie2\n")
     sys.stdout.flush()
     make_bowtie2_databases(taxid, output_dir, n_proc, bowtie2_db_dir, genome_dir)
     run_bowtie2_paf(all_files, taxid, output_dir, n_proc, bowtie2_setting, bowtie2_db_dir)
-    cp = update_checkpoint(output_dir, "7_bowtie2_run")
-    sys.stdout.write("Completed check-point 7 Bowtie2 run\n\n")
+    cp = update_checkpoint(output_dir, "6_bowtie2_run")
+    sys.stdout.write("Completed check-point 6 Bowtie2 run\n\n")
     sys.stdout.flush()
   else:
-    sys.stdout.write("Skipping 7_bowtie2_run because Bowtie2 wasn't in coverage_program")
+    sys.stdout.write("Skipping 6_bowtie2_run because Bowtie2 wasn't in coverage_program")
     sys.stdout.flush()
-    cp = update_checkpoint(output_dir, "7_bowtie2_run")
+    cp = update_checkpoint(output_dir, "6_bowtie2_run")
 else:
-  sys.stdout.write("Skipping 7_bowtie2_run because check-point wasn't 6_minimap2_run\n\n")
+  sys.stdout.write("Skipping 6_bowtie2_run because check-point wasn't 5_combined_files\n\n")
+  sys.stdout.flush()
+
+# 7. Run Minimap2
+if cp == "6_bowtie2_run":
+  if coverage_program in ['Minimap2', 'Both']:
+    sys.stdout.write("Running Minimap2\n")
+    sys.stdout.flush()
+    run_minimap2(all_files, taxid, output_dir, n_proc, genome_dir)
+    cp = update_checkpoint(output_dir, "7_minimap2_run")
+    sys.stdout.write("Completed check-point 7 Minimap2 run\n\n")
+    sys.stdout.flush()
+  else:
+    sys.stdout.write("Skipping 7_minimap2_run because Minimap2 wasn't in coverage_program")
+    sys.stdout.flush()
+    cp = update_checkpoint(output_dir, "7_minimap2_run")
+else:
+  sys.stdout.write("Skipping 7_minimap2_run because check-point wasn't 6_bowtie2_run\n\n")
   sys.stdout.flush()
 
 # 8. Get the coverage and mapping of reads across the genomes
-if cp == "7_bowtie2_run":
+if cp == "7_minimap2_run":
   if skip_coverage:
     cp = update_checkpoint(output_dir, "8_got_coverage")
     sys.stdout.write("Skipped check-point 8 getting coverage across genomes\n\n")
