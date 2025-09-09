@@ -271,7 +271,7 @@ def combine_convert_files(taxid, output_dir, samples, group_samples, n_proc, ski
   os.system('python '+dirname(abspath(__file__))+'/run_commands_multiprocessing.py --commands '+output_dir+'run_convert_fastq_commands.txt --processors '+str(n_proc))
   return all_files
 
-def combine_convert_files_paf(taxid, output_dir, samples, group_samples, n_proc, genome_dir, skip_duplicate_check=False, grouped_samples_only=False):
+def combine_convert_files_paf(taxid, output_dir, samples, group_samples, n_proc, genome_dir, skip_duplicate_check=False, grouped_samples_only=False, no_grouped_samples=False):
   combine_commands = []
   all_fastq = []
   groups_only = []
@@ -304,6 +304,14 @@ def combine_convert_files_paf(taxid, output_dir, samples, group_samples, n_proc,
     sys.stdout.write("You set --grouped_samples_only so instead of %s total files, genome coverage checker will be run with the %s combined files only.\n" % (len(all_fastq), len(groups_only)))
     sys.stdout.flush()
     all_fastq = groups_only
+  if no_grouped_samples:
+    sys.stdout.write("You set --no_grouped_samples so instead of %s total files, genome coverage checker will be run with the %s sample files only.\n" % (len(all_fastq), len(all_fastq)-len(groups_only)))
+    sys.stdout.flush()
+    new_fastq = []
+    for nm in all_fastq:
+      if nm not in groups_only:
+        new_fastq.append(nm)
+    all_fastq = new_fastq
   all_fastq = [f.replace('.fq', '') for f in all_fastq]
   # for fq in all_fastq:
   #   command =  'python '+dirname(abspath(__file__))+'/convert_fastq_to_fasta.py --fastq '+fq+' --fasta '+fq.replace('.fq', '.fa')
@@ -494,7 +502,7 @@ def get_coverage_across_genomes_paf(all_files, taxid, genome_dir, output_dir, n_
   return
 
 
-def collate_output(all_files, taxid, output_dir, kreports, samples, group_samples, skip_bowtie2, skip_coverage, grouped_samples_only):
+def collate_output(all_files, taxid, output_dir, kreports, samples, group_samples, skip_bowtie2, skip_coverage, grouped_samples_only=False, no_grouped_samples=False):
   all_files = [f.split('/')[-1] for f in all_files]
   #get  outputs
   quast_out = {}
@@ -532,6 +540,7 @@ def collate_output(all_files, taxid, output_dir, kreports, samples, group_sample
   #get kraken counts for each sample or each group of samples
   kraken_counts = {}
   tax_list = [t for t in taxid]
+  print(group_samples, samples)
   if not grouped_samples_only:
     for sample in samples:
       group_samples[sample] = [sample]
@@ -598,7 +607,7 @@ def collate_output(all_files, taxid, output_dir, kreports, samples, group_sample
   out_df.to_csv(output_dir+'coverage_checker_output.tsv', sep='\t', index=False)
   return
 
-def collate_output_paf(all_files, taxid, output_dir, kreports, samples, group_samples, skip_coverage, coverage_program, genome_dir, grouped_samples_only):
+def collate_output_paf(all_files, taxid, output_dir, kreports, samples, group_samples, skip_coverage, coverage_program, genome_dir, grouped_samples_only=False, no_grouped_samples=False):
   all_files = [f.split('/')[-1] for f in all_files]
   #get coverage outputs
   bowtie2_out, minimap2_out = {}, {}
@@ -653,6 +662,8 @@ def collate_output_paf(all_files, taxid, output_dir, kreports, samples, group_sa
   #get kraken counts for each sample or each group of samples
   kraken_counts = {}
   tax_list = [t for t in taxid]
+  if no_grouped_samples:
+    group_samples = {}
   if not grouped_samples_only:
     for sample in samples:
       group_samples[sample] = [sample]

@@ -16,8 +16,8 @@ parser.add_argument('--taxid', dest='taxid', default=None,
                     help="Which taxonomy ID's to plot. This can be a single taxonomy ID or a list separated by commas (e.g. 980563,622,2949971)")
 parser.add_argument('--top_taxa', dest='top_taxa', default=30,
                     help="How many taxa to plot (only used for sample oriented format)")
-parser.add_argument('--coverage_program', dest='coverage_program', default='Minimap2', choices=['Minimap2', 'Bowtie2', 'Both'],
-                    help="Which of the programs to use for plotting coverage across the genome. Default is Minimap2.")
+parser.add_argument('--coverage_program', dest='coverage_program', default='Bowtie2', choices=['Minimap2', 'Bowtie2', 'Both'],
+                    help="Which of the programs to use for plotting coverage across the genome. Default is Bowtie2.")
 parser.add_argument('--sort_by', dest='sort_by', default='kraken', choices=['genome_fraction', 'kraken', 'minimap2', 'bowtie2'],
                     help="How to determine which are the top taxa. Note that if you choose minimap2/bowtie2 and ran coverage checker without a read limit then this may not be very helpful.")
 parser.add_argument('--project_folder', dest='project_folder', default=None,
@@ -352,8 +352,8 @@ def multiple_taxa_in_one_sample(save_name, project_folder, taxid, sample, top_ta
         xt = plt.xticks([70, 80, 90, 100])
         xl = plt.xlabel('Identity (%)')
         plt.sca(ax_genome)
-        t = plt.xticks(xticks, [round(gen_means[int(x)]/1000000, 1) for x in xticks])
         xl = plt.xlabel('Genome size (mbp)')
+      t = plt.xticks(xticks, [round(gen_means[int(x)]/1000000, 1) for x in xticks])
   
     ad = 3
     if coverage_program != 'Both':
