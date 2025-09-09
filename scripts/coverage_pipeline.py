@@ -45,7 +45,7 @@ parser.add_argument('--all_domains', dest='all_domains', default=False, action='
 parser.add_argument('--representative_only', dest='representative_only', default=False, action='store_true',
                     help="The default for coverage checker is to use all genomes. If you'd like to limit the checking to only representative and reference genomes then add this flag.")
 parser.add_argument('--bowtie2_setting', dest='bowtie2_setting', default='sensitive',
-                    help="Th default bowtie2 setting to use. Options are very-fast, fast, sensitive or very-sensitive. Default is sensitive (same as Bowtie2 default)")
+                    help="The default bowtie2 setting to use. Options are very-fast, fast, sensitive or very-sensitive. Default is sensitive (same as Bowtie2 default)")
 # parser.add_argument('--skip_bowtie2', dest='skip_bowtie2', default=False, action='store_true',
 #                     help="Whether to skip bowtie2 mapping. Default is to run bowtie2, but bowtie2 can be difficult to install on a mac so add this flag if you don't want to install bowtie2.")
 parser.add_argument('--skip_coverage', dest='skip_coverage', default=False, action='store_true',
