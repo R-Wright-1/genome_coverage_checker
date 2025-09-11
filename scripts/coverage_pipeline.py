@@ -69,6 +69,8 @@ parser.add_argument('--identity_threshold', dest='identity_threshold', default=N
 #Read in the command line arguments
 args = parser.parse_args()
 n_proc, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, output_dir, genome_dir, bowtie2_db_dir = int(args.n_proc), args.fastq_dir, args.kraken_kreport_dir, args.kraken_outraw_dir, args.output_dir, args.genome_dir, args.bowtie2_db_dir
+if '.' in output_dir:
+  sys.exit("No . can be in the output_dir name. Please use only _ and -")
 if genome_dir == None:
   genome_dir = output_dir+'/genomes/'
 if bowtie2_db_dir == None:
@@ -186,7 +188,8 @@ if cp == "3_downloaded_genomes":
   sys.stdout.flush()
   extract_reads(taxid, output_dir, samples, fastq_dir, kraken_kreport_dir, kraken_outraw_dir, n_proc)
   cp = update_checkpoint(output_dir, "4_extracted_reads")
-  sys.stdout.write("Completed check-point 4 extracted all reads\n\n")
+  sys.stdout.write("Completed check-point 4 extracted all reads\n")
+  sys.stdout.write("%s read files exist in the directory\n\n" % (len(os.listdir(output_dir+'/reads_mapped'))))
   sys.stdout.flush()
 else:
   sys.stdout.write("Skipping 4_extracted_reads because check-point wasn't 3_downloaded_genomes\n\n")
@@ -199,7 +202,8 @@ if cp == "4_extracted_reads":
   all_files = combine_convert_files_paf(taxid, output_dir, samples, group_samples, n_proc, genome_dir, skip_duplicate_check, grouped_samples_only, no_grouped_samples)
   save_pickle(all_files, output_dir+'/pickle_intermediates/all_files.pickle')
   cp = update_checkpoint(output_dir, "5_combined_files")
-  sys.stdout.write("Completed check-point 5 combined files\n\n")
+  sys.stdout.write("Completed check-point 5 combined files\n")
+  sys.stdout.write("There are now %s read files in the directory - this is the number of comparisons for Bowtie2/Minimap2\n\n" % (len(os.listdir(output_dir+'/reads_mapped'))))
   sys.stdout.flush()
 else:
   sys.stdout.write("Skipping 5_combined_files because check-point wasn't 4_extracted_reads\n\n")

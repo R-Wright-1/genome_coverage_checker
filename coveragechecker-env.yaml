@@ -1,0 +1,17 @@
+name: coverage_checker
+
+channels:
+- conda-forge
+- bioconda
+- anaconda
+- defaults
+
+dependencies:
+- python ==3.13
+- pandas
+- biopython
+- samtools
+- bowtie2
+- matplotlib
+- minimap2
+- setuptools==66.1.1
