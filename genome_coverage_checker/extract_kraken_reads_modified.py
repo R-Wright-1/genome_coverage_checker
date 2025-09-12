@@ -460,6 +460,11 @@ def main():
         #End Program
         if verbose:
           sys.stdout.write('\r\t%i read IDs found (%0.2f mill reads processed)\n' % (count_output, float(count_seqs/1000000.)))
+        if count_output == 0:
+          sys.stdout.write('\r\t%i read IDs found (%0.2f mill reads processed)\n' % (count_output, float(count_seqs/1000000.)))
+          sys.stdout.write("\r\tIf you're seeing this output a lot, check whether your files within reads_mapped are empty! You can do that with the command ls -lh")
+          sys.stdout.write("\r\tIf they're all empty, you should check whether your kraken_outraw file sequence names match those in your fastq files.")
+          sys.stdout.flush()
 
     #End Program
     if verbose:
