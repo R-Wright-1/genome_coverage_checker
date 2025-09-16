@@ -41,7 +41,10 @@ def get_genome_coverage(file):
   all_identity, all_starts, all_ends, all_MAPQ = [], [], [], []
   for row in open(paf_file, 'r'):
     line = row.replace('\n', '').split('\t')
-    ref_contig, start, end, match_bases, align_len, MAPQ = line[5], int(line[7]), int(line[8]), int(line[9]), int(line[10]),  int(line[11])
+    try:
+      ref_contig, start, end, match_bases, align_len, MAPQ = line[5], int(line[7]), int(line[8]), int(line[9]), int(line[10]),  int(line[11])
+    except:
+      continue
     if MAPQ <= mapq_threshold: continue
     start += contig_lengths[ref_contig+'_start']
     end += contig_lengths[ref_contig+'_start']

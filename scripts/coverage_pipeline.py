@@ -46,8 +46,6 @@ parser.add_argument('--representative_only', dest='representative_only', default
                     help="The default for coverage checker is to use all genomes. If you'd like to limit the checking to only representative and reference genomes then add this flag.")
 parser.add_argument('--bowtie2_setting', dest='bowtie2_setting', default='sensitive',
                     help="The default bowtie2 setting to use. Options are very-fast, fast, sensitive or very-sensitive. Default is sensitive (same as Bowtie2 default)")
-# parser.add_argument('--skip_bowtie2', dest='skip_bowtie2', default=False, action='store_true',
-#                     help="Whether to skip bowtie2 mapping. Default is to run bowtie2, but bowtie2 can be difficult to install on a mac so add this flag if you don't want to install bowtie2.")
 parser.add_argument('--skip_coverage', dest='skip_coverage', default=False, action='store_true',
                     help="Whether to skip getting coverage for all reads across the genomes. This can take a little while, so you can skip it if you don't think that this output is useful to you.")
 parser.add_argument('--skip_cleanup', dest='skip_cleanup', default=False, action='store_true',
@@ -94,6 +92,8 @@ if identity_threshold != None:
     float(identity_threshold)
   except:
     sys.exit("identity_threshold must be a number")
+if project_name == None:
+  sys.exit("You must set --project_name")
     
 if grouped_samples_only and no_grouped_samples:
   sys.exit("You cannot set both grouped_samples_only and no_grouped_samples. These contradict eachother. Please choose one only and try running again.")
@@ -261,7 +261,7 @@ if cp == "7_minimap2_run":
     sys.stdout.write("Completed check-point 8 got coverage across genomes\n\n")
     sys.stdout.flush()
 else:
-  sys.stdout.write("Skipping 8_got_coverage because check-point wasn't 7_bowtie2_run\n\n")
+  sys.stdout.write("Skipping 8_got_coverage because check-point wasn't 7_minimap2_run\n\n")
   sys.stdout.flush()
 
 # 9. Collate the output
