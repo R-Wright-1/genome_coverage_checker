@@ -10,6 +10,14 @@ import time
 
 start_time = time.time()
 
+o = sys.stdout
+time_string = str(time.ctime(start_time)).replace(':', '-')
+print('Logging all output to '+'Genome Coverage Checker log '+time_string+'.txt\n')
+print('Check this file at any point to see where Genome Coverage Checker is in the pipeline.\n')
+
+f = open('Genome Coverage Checker log '+time_string+'.txt', 'w')
+sys.stdout = f
+
 # 0. Get command line arguments
 parser = argparse.ArgumentParser(description='This script is to check which taxa reads have been assigned to by Kraken, pull out these reads, download reference genomes for the taxa, and map the reads to the reference genomes.')
 parser.add_argument('--processors', dest='n_proc', default=1,
@@ -295,3 +303,6 @@ else:
 sys.stdout.write("Finished running genome coverage checker pipeline.\n")
 sys.stdout.write("Running time: --- %s seconds ---\n\n" % str(round((time.time() - start_time), 2)))
 sys.stdout.flush()
+
+f.close()
+sys.stdout = o
