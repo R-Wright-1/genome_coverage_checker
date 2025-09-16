@@ -60,7 +60,7 @@ else:
 
 # make plot for single taxon/genome
 def plot_genome_coverage(axes_genome, axes_id, sample_name, taxid, length, program):
-  fn = project_folder+'coverage/'+program+'_'+sample_name+'_'+taxid+'.txt'
+  fn = project_folder+'coverage/'+program.replace('B', 'b').replace('M', 'm')+'_'+sample_name+'_'+taxid+'.txt'
   if not os.path.exists(fn):
     for ax in [axes_genome, axes_id]:
       plt.sca(ax)
