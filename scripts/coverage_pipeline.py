@@ -306,3 +306,5 @@ sys.stdout.flush()
 
 f.close()
 sys.stdout = o
+
+print('See '+'Genome Coverage Checker log '+time_string+'.txt for a complete log of the Genome Coverage Checker run!\n')

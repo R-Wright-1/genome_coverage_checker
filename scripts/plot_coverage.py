@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib as mpl
 import os
 import sys
+import math
 
 parser = argparse.ArgumentParser(description='This script is to plot the coverage of taxa after the coverage_pipeline.py script has been run.')
 parser.add_argument('--running', dest='running', default='taxon', choices=['taxon','sample'],
@@ -65,7 +66,9 @@ def plot_genome_coverage(axes_genome, axes_id, sample_name, taxid, length, progr
     for ax in [axes_genome, axes_id]:
       plt.sca(ax)
       xl = plt.xlim([68, 102]), plt.ylim(-0.5, 0.5)
-      tx = plt.text(0.5, 0.5, 'NA', ha='center', va='center', transform=ax.transAxes)
+      if ax == axes_genome: text = 'No reads mapped'
+      else: text = 'NA'
+      tx = plt.text(0.5, 0.5, text, ha='center', va='center', transform=ax.transAxes)
       xt = plt.xticks([]), plt.yticks([])
     return 'NA', 'NA'
   starts = ['']
@@ -80,7 +83,9 @@ def plot_genome_coverage(axes_genome, axes_id, sample_name, taxid, length, progr
     for ax in [axes_genome, axes_id]:
       plt.sca(ax)
       xl = plt.xlim([68, 102]), plt.ylim(-0.5, 0.5)
-      tx = plt.text(0.5, 0.5, 'NA', ha='center', va='center', transform=ax.transAxes)
+      if ax == axes_genome: text = 'No reads mapped'
+      else: text = 'NA'
+      tx = plt.text(0.5, 0.5, text, ha='center', va='center', transform=ax.transAxes)
       xt = plt.xticks([]), plt.yticks([])
     return 'NA', 'NA'
   starts = [int(n) for n in starts]
@@ -168,7 +173,7 @@ def single_taxon_across_samples(taxid, save_name, project_folder, coverage_progr
   elif coverage_program == 'Both':
     fig = plt.figure(figsize=(40,l))
     programs = ['Minimap2', 'Bowtie2']
-  fig.suptitle(taxid+': '+species_name+'\n\n', fontweight='bold', fontsize=26, ha='right')
+  fig.suptitle(taxid+': $'+species_name.replace(' ', '$ $')+'$\n\n', fontweight='bold', fontsize=26, ha='right')
   for program in programs:
     colormaps, colnames = ['RdPu', 'GnBu', 'BuPu'], ['Kraken reads assigned', program+' genome fraction (%)', 'Proportion kraken reads mapped with '+program]
     plot_names = ['Kraken reads\nassigned', program+' genome\nfraction(%)', 'Kraken reads\nmapped by\n'+program+' (%)']
@@ -206,12 +211,18 @@ def single_taxon_across_samples(taxid, save_name, project_folder, coverage_progr
       axes = [ax_kraken, ax_program_gf, ax_program_prop]
       rounding, div = [None, 3, 3, 3], [None, None, None, None]
       for a in range(len(axes)):
-        plot_square(axes[a], mapping[a], cc_out.loc[sample_order[s], colnames[a]], mins[a], maxs[a], rnd=rounding[a], div=div[a])
+        try:
+          plot_square(axes[a], mapping[a], cc_out.loc[sample_order[s], colnames[a]], mins[a], maxs[a], rnd=rounding[a], div=div[a])
+        except:
+          plot_square(axes[a], mapping[a], 0, mins[a], maxs[a], rnd=rounding[a], div=div[a])
         if s == 0:
           axes[a].set_title(plot_names[a], fontweight='bold', rotation=90)
       if program == 'Minimap2': ax_genome.set_ylabel(sample_order[s], fontweight='bold', rotation=0, ha='right', va='center')
       elif coverage_program != 'Both' and program == 'Bowtie2': ax_genome.set_ylabel(sample_order[s], fontweight='bold', rotation=0, ha='right', va='center')
-      xt, gm = plot_genome_coverage(ax_genome, ax_identity, sample_order[s], taxid, cc_out.loc[sample_order[s], 'Reference genome length (bp)'], program)
+      try:
+        xt, gm = plot_genome_coverage(ax_genome, ax_identity, sample_order[s], taxid, cc_out.loc[sample_order[s], 'Reference genome length (bp)'], program)
+      except:
+        xt, gm = plot_genome_coverage(ax_genome, ax_identity, sample_order[s], taxid, 0, program)
       if xt != 'NA':
         xticks, gen_means = xt, gm
       if s == 0:
@@ -339,8 +350,8 @@ def multiple_taxa_in_one_sample(save_name, project_folder, taxid, sample, top_ta
         plot_square(axes[a], mapping[a], cc_out.loc[plot_order[s], colnames[a]], mins[a], maxs[a], rnd=rounding[a], div=div[a])
         if s == 0:
           axes[a].set_title(plot_names[a], fontweight='bold', rotation=90)
-      if program == 'Minimap2': ax_genome.set_ylabel(str(plot_order[s])+': '+cc_out.loc[plot_order[s], 'Species name'].replace('_', ' '), fontweight='bold', rotation=0, ha='right', va='center')
-      elif coverage_program != 'Both' and program == 'Bowtie2': ax_genome.set_ylabel(str(plot_order[s])+': '+cc_out.loc[plot_order[s], 'Species name'].replace('_', ' '), fontweight='bold', rotation=0, ha='right', va='center')
+      if program == 'Minimap2': ax_genome.set_ylabel(str(plot_order[s])+': $'+cc_out.loc[plot_order[s], 'Species name'].replace('_', '$ $')+'$', fontweight='bold', rotation=0, ha='right', va='center')
+      elif coverage_program != 'Both' and program == 'Bowtie2': ax_genome.set_ylabel(str(plot_order[s])+': $'+cc_out.loc[plot_order[s], 'Species name'].replace('_', '$ $')+'$', fontweight='bold', rotation=0, ha='right', va='center')
       xt, gm = plot_genome_coverage(ax_genome, ax_identity, sample, str(plot_order[s]), cc_out.loc[plot_order[s], 'Reference genome length (bp)'], program)
       if xt != 'NA':
         xticks, gen_means = xt, gm
@@ -353,7 +364,14 @@ def multiple_taxa_in_one_sample(save_name, project_folder, taxid, sample, top_ta
         xl = plt.xlabel('Identity (%)')
         plt.sca(ax_genome)
         xl = plt.xlabel('Genome size (mbp)')
-      t = plt.xticks(xticks, [round(gen_means[int(x)]/1000000, 1) for x in xticks])
+      plt.sca(ax_genome)
+      if xt == 'NA':
+        xt = plt.xlim([0, 1])
+        rl = cc_out.loc[plot_order[s], 'Reference genome length (bp)']
+        rng = math.ceil(rl/1000000)
+        t = plt.xticks([(x*1000000)/rl for x in range(rng)], [str(float(x)) for x in range(rng)])
+      else:
+        t = plt.xticks(xticks, [round(gen_means[int(x)]/1000000, 1) for x in xticks])
   
     ad = 3
     if coverage_program != 'Both':
